@@ -244,16 +244,17 @@ function drawSpyder(cx, cy) {
   }
 
   // ── Chassis ──
-  const chassisCol=PL.isoVis?'#4a5c3a':'#444';
-  const railCol   =PL.isoVis?'#5a6e4a':'#565656';
+  const chassisCol=PL.camoVis?'#3a5a2a':PL.isoVis?'#4a5c3a':'#444';
+  const railCol   =PL.camoVis?'#4a6a38':PL.isoVis?'#5a6e4a':'#565656';
   pr(cx-6, cy-2, 15, 2, chassisCol);
   pr(cx-6, cy-3, 15, 1, railCol);
+  if(PL.camoVis){ pr(cx-4,cy-2,2,2,'#1a2a10'); pr(cx+1,cy-2,3,1,'#1a2a10'); pr(cx+6,cy-3,3,2,'#1a2a10'); } // black camo stripes
   pr(cx-6, cy,   15, 1, '#1a1a1a');
 
   // ── Launcher box ──
-  const boxCol=PL.titaniumVis?'#7a7a8a':'#4e4e4e';
-  const boxTop=PL.titaniumVis?'#9898aa':'#636363';
-  const boxHL =PL.titaniumVis?'#aaaabc':'#5a5a5a';
+  const boxCol=PL.camoVis?'#4a6830':PL.titaniumVis?'#7a7a8a':'#4e4e4e';
+  const boxTop=PL.camoVis?'#5a7a3a':PL.titaniumVis?'#9898aa':'#636363';
+  const boxHL =PL.camoVis?'#6a8a48':PL.titaniumVis?'#aaaabc':'#5a5a5a';
   pr(cx,   cy-5, 8, 3, boxCol);
   pr(cx,   cy-5, 8, 1, boxTop);
   pr(cx,   cy-5, 1, 3, boxHL);
@@ -814,7 +815,7 @@ const PL = {
   dead:false,
   hpRegen:0, disneyBoost:false, confinement:false,
   ricochet:false, maxBounces:1, salakau:false, rsd:false, enemyCut:0, lazyMissile:false, lazyTimer:0,
-  dmgReduce:0, freshTyresVis:false, titaniumVis:false, isoVis:false,
+  dmgReduce:0, camoVis:false, camoDodge:0, freshTyresVis:false, titaniumVis:false, isoVis:false,
   radarVis:false, noDuffVis:false, aslanVis:false, musicNotesVis:false, msvLevel:0, siauwNuke:false, barrageVis:false, paradeVis:false,
   ownedUpgs: new Set(),
 };
@@ -832,12 +833,12 @@ function resetPlayer() {
   PL.fireTimer=0; PL.iFrames=0; PL.dead=false;
   PL.hpRegen=0; PL.disneyBoost=false; PL.confinement=false;
   PL.ricochet=false; PL.maxBounces=1; PL.salakau=false; PL.rsd=false; PL.enemyCut=0; PL.lazyMissile=false; PL.lazyTimer=0;
-  PL.dmgReduce=0; PL.freshTyresVis=false; PL.titaniumVis=false; PL.isoVis=false;
+  PL.dmgReduce=0; PL.camoVis=false; PL.camoDodge=0; PL.freshTyresVis=false; PL.titaniumVis=false; PL.isoVis=false;
   PL.radarVis=false; PL.noDuffVis=false; PL.aslanVis=false; PL.musicNotesVis=false; PL.msvLevel=0; PL.siauwNuke=false; PL.barrageVis=false; PL.paradeVis=false;
   PL.ownedUpgs = new Set();
   NOTEPARTICLES.length=0; siauwDrop=null;
   enemySlowTimer=0; enemySlowMul=1;
-  VAPECLOUDS.length=0;
+  VAPECLOUDS.length=0; BALLOONS.length=0; HPACKS.length=0; balloonTimer=0;
 }
 
 function updatePlayer(dt) {
@@ -895,6 +896,7 @@ function fireMissiles() {
 
 function hurtPlayer(dmg) {
   if(PL.iFrames>0) return;
+  if(PL.camoDodge && Math.random()<PL.camoDodge) return;
   if(PL.dmgReduce) dmg=Math.max(1, (dmg*(1-PL.dmgReduce))|0);
   if(PL.hasShield && PL.shield>0){
     const ab=Math.min(PL.shield,dmg); PL.shield-=ab; dmg-=ab;
@@ -993,59 +995,50 @@ function drawCornerMSV(level) {
 
 // ── Confinement cage + captive + tiny screen ──
 function drawConfinementCage(cx,cy){
-  pr(cx-4,cy-8,8,1,'#aaa'); pr(cx-4,cy,8,1,'#aaa'); // top/bottom
-  pr(cx-4,cy-8,1,8,'#aaa'); pr(cx+3,cy-8,1,8,'#aaa'); // sides
-  pr(cx-1,cy-8,1,8,'#888'); pr(cx+1,cy-8,1,8,'#888'); // bars
-  pr(cx-2,cy-6,2,2,'#c87040'); pr(cx-3,cy-4,4,3,'#664422'); // captive
-  pr(cx-5,cy-5,2,3,'#0033cc'); pr(cx-5,cy-4,2,1,'#2255ff'); // movie screen glow
+  pr(cx-3,cy-6,6,1,'#aaa'); pr(cx-3,cy,6,1,'#aaa');   // top/bottom
+  pr(cx-3,cy-6,1,6,'#aaa'); pr(cx+2,cy-6,1,6,'#aaa'); // sides
+  pr(cx-1,cy-6,1,6,'#888'); pr(cx+1,cy-6,1,6,'#888'); // bars
+  pr(cx-1,cy-5,2,2,'#c87040'); pr(cx-2,cy-3,3,2,'#664422'); // captive
+  pr(cx-3,cy-4,2,2,'#0033cc'); // movie screen
 }
 
 // ── Jacob (doctor, follows left of player) ──
 function drawJacob(cx,cy){
-  const jx=cx-18,jy=cy;
-  pr(jx,  jy-6,2,2,'#d0a070'); // head
-  pr(jx-1,jy-4,4,4,'#eeeeee'); // white coat
-  pr(jx,  jy-3,1,2,'#cc0000'); // red cross vertical
-  pr(jx-1,jy-2,3,1,'#cc0000'); // red cross horizontal
-  pr(jx,  jy,  2,2,'#888');    // legs
-  pr(jx+2,jy-2,2,2,'#cc2200'); // med bag
+  const jx=cx-13,jy=cy;
+  pr(jx,  jy-5,2,1,'#d0a070'); // head
+  pr(jx-1,jy-4,3,3,'#eeeeee'); // white coat
+  pr(jx,  jy-3,1,2,'#cc0000'); // red cross v
+  pr(jx-1,jy-2,3,1,'#cc0000'); // red cross h
+  pr(jx,  jy,  1,2,'#888');    // legs
+  pr(jx+2,jy-2,1,2,'#cc2200'); // med bag
 }
 
 // ── Aslan (shouting figure, left of player) ──
 function drawParadeOfficer(cx,cy){
-  const px=cx+20, py=cy;
-  // Sword — held upright, tip above head
-  pr(px+3,py-14,1,11,'#ccccaa'); // blade
-  pr(px+2,py-4, 3,1, '#ddaa00'); // cross guard
-  pr(px+3,py-3, 1,2, '#664422'); // grip
-  // Service cap
-  pr(px-1,py-10,4,1,'#1a2a6a'); // brim
-  pr(px,  py-9, 2,1, '#1a2a6a'); // crown
-  // Head
-  pr(px,  py-8, 2,2, '#d0a070');
-  // White dress jacket
-  pr(px-1,py-6, 4,5, '#ddddee');
-  pr(px-1,py-6, 1,1, '#ddaa00'); // left epaulette
-  pr(px+2,py-6, 1,1, '#ddaa00'); // right epaulette
-  pr(px,  py-5, 2,1, '#cc2200'); // medal ribbon
-  // Right arm holding sword
-  pr(px+2,py-4, 2,2, '#ddddee');
-  // Dark trousers with stripe
-  pr(px,  py-1, 1,3, '#1a1a44');
-  pr(px+1,py-1, 1,3, '#ccaa00'); // gold stripe down seam
-  pr(px+2,py-1, 1,3,'#1a1a44');
-  // Shoes
-  pr(px,  py+2, 2,1, '#111');
+  const px=cx+14, py=cy;
+  pr(px+2,py-11,1,8,'#ccccaa'); // blade
+  pr(px+1,py-4, 3,1,'#ddaa00'); // cross guard
+  pr(px+2,py-3, 1,1,'#664422'); // grip
+  pr(px-1,py-8, 3,1,'#1a2a6a'); // cap brim
+  pr(px,  py-7, 2,1,'#1a2a6a'); // cap crown
+  pr(px,  py-6, 2,1,'#d0a070'); // head
+  pr(px-1,py-5, 3,4,'#ddddee'); // jacket
+  pr(px-1,py-5, 1,1,'#ddaa00'); // epaulette l
+  pr(px+1,py-5, 1,1,'#ddaa00'); // epaulette r
+  pr(px,  py-4, 2,1,'#cc2200'); // ribbon
+  pr(px+1,py-3, 2,2,'#ddddee'); // sword arm
+  pr(px,  py-1, 1,2,'#1a1a44'); // left leg
+  pr(px+1,py-1, 1,2,'#ccaa00'); // gold stripe
+  pr(px+2,py-1, 1,2,'#1a1a44'); // right leg
 }
 function drawAslan(cx,cy){
   const ax=cx-22,ay=cy;
-  pr(ax,  ay-6,2,2,'#d0a070'); // head
-  pr(ax-1,ay-4,4,4,'#446688'); // uniform
-  pr(ax,  ay,  2,2,'#334466'); // legs
-  pr(ax+1,ay-5,1,1,'#331100'); // open mouth
-  // Speech arrow pointing right
-  pr(ax+3,ay-8,1,3,'#fff'); pr(ax+3,ay-4,1,1,'#fff'); // !
-  pr(ax+4,ay-6,4,1,'#ffdd00'); pr(ax+7,ay-7,1,3,'#ffdd00'); // arrow >
+  pr(ax,  ay-5,2,1,'#d0a070'); // head
+  pr(ax-1,ay-4,3,3,'#446688'); // uniform
+  pr(ax,  ay,  1,2,'#334466'); // legs
+  pr(ax+1,ay-4,1,1,'#331100'); // open mouth
+  pr(ax+2,ay-6,1,2,'#fff'); pr(ax+2,ay-4,1,1,'#fff'); // !
+  pr(ax+3,ay-5,3,1,'#ffdd00'); pr(ax+5,ay-6,1,2,'#ffdd00'); // arrow >
 }
 
 // ── Siauw Yu Hern (nuke sprite) ──
@@ -1113,7 +1106,7 @@ function drawPlayer() {
     const tier = PL.maxShield>=150 ? 3 : PL.maxShield>=80 ? 2 : 1;
     drawUmbrella((PL.x)|0, (PL.y)|0, tier);
   }
-  if(PL.confinement) drawConfinementCage((PL.x+24)|0,(PL.y)|0);
+  if(PL.confinement) drawConfinementCage((PL.x+22)|0,(PL.y)|0);
   for(const c of PL.companions) c.draw();
 }
 
@@ -1149,7 +1142,7 @@ class RBS70 {
   constructor() {
     const idx = PL.companions.length;
     const side = idx%2===0 ? -1 : 1;
-    this.off = side*(20+Math.floor(idx/2)*22);
+    this.off = side*(34+Math.floor(idx/2)*22);
     this.x = PL.x+this.off;
     this.y = GH-7; // ground level, same as player
     this.fireTimer = Math.random()*800;
@@ -1259,7 +1252,7 @@ class VapeCloud {
     if(this.dmgTimer>=120){
       this.dmgTimer=0;
       for(const e of ENEMIES)
-        if(!e.dead && Math.hypot(e.x-this.x,e.y-this.y)<this.r+5) e.hit(4);
+        if(!e.dead && Math.hypot(e.x-this.x,e.y-this.y)<this.r+5) e.hit(3);
     }
   }
   draw(){
@@ -1277,6 +1270,66 @@ class VapeCloud {
 // ══════════════════════════════════════════════════════════════
 const ENEMIES=[];
 const VAPECLOUDS=[];
+const BALLOONS=[];
+const HPACKS=[];
+let balloonTimer=0;
+const BALLOON_INTERVAL=18000;
+
+function drawBalloonSprite(x,y){
+  pr(x,  y+3,1,4,'#aaaaaa');          // string
+  pr(x-1,y-3,3,1,'#ff6688');          // top bulge
+  pr(x-2,y-2,5,4,'#ff4466');          // body
+  pr(x-1,y+2,3,1,'#ff4466');          // bottom taper
+  pr(x-1,y-2,1,1,'#ffaabb');          // highlight
+  pr(x,  y-1,1,3,'#fff');             // cross v
+  pr(x-1,y,  3,1,'#fff');             // cross h
+}
+function drawHealthPackSprite(x,y){
+  pr(x-2,y-3,5,5,'#eeeeee');          // white box
+  pr(x,  y-3,1,5,'#cc1111');          // red cross v
+  pr(x-2,y-1,5,1,'#cc1111');          // red cross h
+}
+
+class Balloon{
+  constructor(){
+    this.x=6+Math.random()*(GW-12);
+    this.y=-14; this.vy=0.22+Math.random()*0.12;
+    this.phase=Math.random()*Math.PI*2; this.dead=false;
+  }
+  update(dt){
+    this.y+=this.vy*dt*60;
+    this.x+=Math.sin(this.phase+=dt*1.1)*0.28;
+    if(this.y>GH+12) this.dead=true;
+  }
+  pop(){
+    this.dead=true;
+    spawnExplosion(this.x,this.y,8,false);
+    HPACKS.push(new HealthPack(this.x,this.y));
+  }
+  draw(){ drawBalloonSprite((this.x)|0,(this.y)|0); }
+}
+
+class HealthPack{
+  constructor(x,y){ this.x=x; this.y=y; this.vy=0; this.landed=false; this.timer=8000; this.dead=false; }
+  update(dt){
+    if(!this.landed){
+      this.vy+=0.35*dt*60; this.y+=this.vy*dt*60;
+      if(this.y>=GH-10){ this.y=GH-10; this.landed=true; this.vy=0; }
+    } else {
+      this.timer-=dt*1000;
+      if(this.timer<=0){ this.dead=true; return; }
+      if(Math.abs(PL.x-this.x)<7 && !PL.dead){
+        PL.hp=Math.min(PL.hp+25,PL.maxHp);
+        spawnExplosion(this.x,this.y,6,false);
+        this.dead=true;
+      }
+    }
+  }
+  draw(){
+    if(this.timer<2000 && Math.floor(Date.now()/200)%2===0) return;
+    drawHealthPackSprite((this.x)|0,(this.y)|0);
+  }
+}
 
 class Enemy {
   constructor(type, wave) {
@@ -1284,7 +1337,7 @@ class Enemy {
     this.x=10+Math.random()*(GW-20); this.y=-8;
     // Waves 1-2 are gentle intro; first boss is wave 3; steep ramp after
     const earlyMul = wave<=2 ? (0.55+wave*0.22) : 1.0; // W1:0.77 W2:0.99 W3+:1.0
-    const lateMul  = wave>3  ? 1+(wave-3)*0.20  : 1.0; // W4:1.20 W5:1.40 W7:1.80 W9:2.20 W12:2.80
+    const lateMul  = wave>3  ? 1+(wave-3)*0.13  : 1.0; // W4:1.13 W5:1.26 W7:1.52 W9:1.78 W12:2.17
     const ws = earlyMul * lateMul;
 
     switch(type){
@@ -1583,17 +1636,17 @@ const UPGDEFS = [
   // ── common ──
   {id:'dmg1', r:'common',   w:50, ico:'⚫', nm:'More Ball Bearings', dsc:'+30% missile damage',        fn:(p)=>{ p.damage=(p.damage*1.3)|0; }},
   {id:'fr1',  r:'common',   w:50, ico:'🫡', nm:"Tam's MSV",        dsc:'Tam helps reload faster!',     eff:'-20% reload time', fn:(p)=>{ p.fireRate=(p.fireRate*.8)|0; p.msvLevel=Math.max(p.msvLevel,1); }},
-  {id:'hp1',  r:'common',   w:45, ico:'🚛', nm:'ISO Platform Upgrade', dsc:'Aaron calls in extra supplies of steel', eff:'+60 max HP', fn:(p)=>{ p.maxHp+=60; p.isoVis=true; }},
+  {id:'hp1',  r:'common',   w:45, ico:'🚛', nm:'ISO Platform Upgrade', dsc:'Aaron calls in extra supplies of steel', eff:'+60 max HP', fn:(p)=>{ p.maxHp+=60; p.hp=Math.min(p.hp+60,p.maxHp); p.isoVis=true; }},
   {id:'spd1', r:'common',   w:40, ico:'🛞', nm:'Fresh Tyres',     dsc:'Asa donated better tyres',      eff:'+20% speed', fn:(p)=>{ p.speed*=1.2; p.freshTyresVis=true; }},
   // ── uncommon ──
   {id:'dmg2', r:'uncommon', w:25, ico:'💣', nm:'HE Warhead',      req:['dmg1'], dsc:'MEs swapped the warheads when encik wasn\'t looking', eff:'+60% missile damage', fn:(p)=>{ p.damage=(p.damage*1.6)|0; }},
   {id:'fr2',  r:'uncommon', w:25, ico:'🚐', nm:'MSV Upgrade',     req:['fr1'], dsc:'The MSV now carries 80 missiles',eff:'-35% reload time', fn:(p)=>{ p.fireRate=(p.fireRate*.65)|0; p.msvLevel=Math.max(p.msvLevel,2); }},
   {id:'ml1',  r:'uncommon', w:22, ico:'📷', nm:'Multiple TLIII',  dsc:'Enciks found a way to mount another Toplite onto the launcher', eff:'+2 launchers', fn:(p)=>{ p.projCount=Math.min(8,p.projCount+2); }},
-  {id:'hp2',  r:'uncommon', w:20, ico:'🛡️', nm:'Titanium Carriage', req:['hp1'], dsc:'Desean managed to mount titanium onto the launcher', eff:'+100 max HP', fn:(p)=>{ p.maxHp+=100; p.titaniumVis=true; }},
-  {id:'mlu1', r:'epic',     w:3,  ico:'⬆️', nm:'MLU',              req:['hp2'], dsc:'Matthew managed to steal one from 3DA for use', eff:'+200 max HP, 10% damage reduction', fn:(p)=>{ p.maxHp+=200; p.dmgReduce=(p.dmgReduce||0)+0.10; }},
+  {id:'hp2',  r:'uncommon', w:20, ico:'🛡️', nm:'Titanium Carriage', req:['hp1'], dsc:'Desean managed to mount titanium onto the launcher', eff:'+100 max HP', fn:(p)=>{ p.maxHp+=100; p.hp=Math.min(p.hp+100,p.maxHp); p.titaniumVis=true; }},
+  {id:'mlu1', r:'epic',     w:3,  ico:'⬆️', nm:'MLU',              req:['hp2'], dsc:'Matthew managed to steal one from 3DA for use', eff:'+200 max HP, 10% damage reduction', fn:(p)=>{ p.maxHp+=200; p.hp=Math.min(p.hp+200,p.maxHp); p.dmgReduce=(p.dmgReduce||0)+0.10; }},
   {id:'conf', r:'uncommon', w:18, ico:'🎬', nm:'Confinement',       dsc:'Make all the enemies watch A Few Good Men before each wave', eff:'Enemies start each wave at 30% speed (ramps up)', fn:(p)=>{ p.confinement=true; }},
   {id:'doc1', r:'uncommon', w:16, ico:'🩺', nm:"Doctor's Deferment", dsc:'Jacob comes back to heal the launcher', eff:'+3 HP/sec passive regen', fn:(p)=>{ p.hpRegen+=3; }},
-  {id:'par1', r:'uncommon', w:15, ico:'🎖️', nm:'Parade Season',     dsc:'Parade 2IC Juai Seu makes the men fall in before every wave', eff:'+15% dmg, −12% reload, +12% speed, +25 max HP', fn:(p)=>{ p.damage=(p.damage*1.15)|0; p.fireRate=(p.fireRate*.88)|0; p.speed*=1.12; p.maxHp+=25; p.paradeVis=true; }},
+  {id:'par1', r:'uncommon', w:15, ico:'🎖️', nm:'Parade Season',     dsc:'Parade 2IC Juai Seu makes the men fall in before every wave', eff:'+15% dmg, −12% reload, +12% speed, +25 max HP', fn:(p)=>{ p.damage=(p.damage*1.15)|0; p.fireRate=(p.fireRate*.88)|0; p.speed*=1.12; p.maxHp+=25; p.hp=Math.min(p.hp+25,p.maxHp); p.paradeVis=true; }},
   // ── rare ──
   {id:'ml2',  r:'rare',     w:13, ico:'🎯', nm:'Increase AD Coverage', req:['ml1'], dsc:'Overlapping fire or something like that', eff:'+2 missiles, wider cone', fn:(p)=>{ p.projCount=Math.min(8,p.projCount+2); p.spreadMul=Math.min(2.2,p.spreadMul+0.35); p.radarVis=true; }},
   {id:'sh1',  r:'rare',     w:11, ico:'☂️', nm:'Umbrella',        dsc:'No Gortex Needed',             eff:'50HP shield (regen after 5s)', fn:(p)=>{ p.maxShield=50; p.shield=p.maxShield; p.hasShield=true; }},
@@ -1602,7 +1655,7 @@ const UPGDEFS = [
   // ── rare (extra) ──
   {id:'oc1',  r:'rare',     w:11, ico:'⚙️', nm:'No-Duff Upgrade',  dsc:'Siauw got unlucky again',       eff:'+20% dmg & -15% reload', fn:(p)=>{ p.damage=(p.damage*1.2)|0; p.fireRate=(p.fireRate*.85)|0; p.noDuffVis=true; }},
   {id:'sa1',  r:'rare',     w:9,  ico:'☂️', nm:'Bigger Umbrella',  req:['sh1'], dsc:'Increased aura loss comes with this upgrade', eff:'+50 shield (or add 30HP shield)', fn:(p)=>{ if(p.hasShield){ p.maxShield+=50; p.shield=Math.min(p.shield+50,p.maxShield); } else { p.maxShield=30; p.shield=30; p.hasShield=true; } }},
-  {id:'cs1',  r:'rare',     w:10, ico:'🗣️', nm:"Aslan's Speech",  dsc:'Motivates the crew and maybe make Trevor cry', eff:'+35 max HP, +12% spd', fn:(p)=>{ p.maxHp+=35; p.speed*=1.12; p.aslanVis=true; }},
+  {id:'cs1',  r:'rare',     w:10, ico:'🗣️', nm:"Aslan's Speech",  dsc:'Motivates the crew and maybe make Trevor cry', eff:'+35 max HP, +12% spd', fn:(p)=>{ p.maxHp+=35; p.hp=Math.min(p.hp+35,p.maxHp); p.speed*=1.12; p.aslanVis=true; }},
   {id:'hm1',  r:'rare',     w:10, ico:'🐍', nm:'Python Seeker',   dsc:'All missiles home in on targets', fn:(p)=>{ p.homing=true; }},
   {id:'dis1', r:'rare',     w:10, ico:'🎵', nm:'Disney Music',    dsc:'Chorch motivates the crew',       eff:'When HP<40%: +35% speed & −30% reload', fn:(p)=>{ p.disneyBoost=true; p.musicNotesVis=true; }},
   {id:'ric1', r:'rare',     w:9,  ico:'↩️', nm:'Ricochet',        dsc:'Josher convinces the missiles they can bounce', eff:'Missiles bounce once to another enemy on hit', fn:(p)=>{ p.ricochet=true; }},
@@ -1611,12 +1664,14 @@ const UPGDEFS = [
   {id:'rsd1', r:'uncommon', w:17, ico:'🛌', nm:'RSD',             dsc:'Now the enemies are bored too',   eff:'Enemy fire rate halved', fn:(p)=>{ p.rsd=true; }},
   {id:'rac1', r:'uncommon', w:15, ico:'🚪', nm:'Racist Remarks',  dsc:'Even the enemies are offended by Isaac', eff:'2 fewer enemies spawn each wave', fn:(p)=>{ p.enemyCut+=2; }},
   {id:'rac2', r:'rare',     w:8,  ico:'🚪', nm:'SUPER',           req:['rac1'], dsc:"Jerome's odour chases the enemies away", eff:'4 fewer enemies spawn each wave', fn:(p)=>{ p.enemyCut+=4; }},
+  {id:'camo', r:'uncommon', w:14, ico:'🟩', nm:'Camo On',        dsc:"Chenyi's favourite", eff:'30% chance enemy projectiles miss', fn:(p)=>{ p.camoVis=true; p.camoDodge=0.30; }},
+  {id:'camo2',r:'rare',     w:8,  ico:'🟩', nm:'Turn Out',       req:['camo'], dsc:'Disorient your enemies and give them anxiety', eff:'50% chance enemy projectiles miss', fn:(p)=>{ p.camoDodge=0.50; }},
   {id:'laz1', r:'uncommon', w:14, ico:'🪙', nm:'Lazy Missile',    dsc:'Brennen was so lazy he left coins on the fire button to shoot by itself', eff:'Auto-fires a slow missile at enemies every 2.5s', fn:(p)=>{ p.lazyMissile=true; }},
   // ── epic ──
   {id:'ml3',  r:'epic',     w:4,  ico:'🌟', nm:'Missile Barrage', req:['ml2'], dsc:'AELG added 8 more canisters', eff:'+3 missiles in spread', fn:(p)=>{ p.projCount=Math.min(8,p.projCount+3); p.barrageVis=true; }},
   {id:'sh2',  r:'epic',     w:3,  ico:'☂️', nm:'Biggest Umbrella', req:['sa1'], dsc:'Entire OCS now scared of you', eff:'150HP shield (regen 3s)', fn:(p)=>{ p.maxShield=150; p.shield=p.maxShield; p.hasShield=true; p.shieldRegenDelay=3000; }},
   {id:'co2',  r:'epic',     w:2,  ico:'👾', nm:'Secret Weapon',   dsc:'Whatever mingker said',        eff:'Deploy TWO strike drones', fn:(p)=>{ for(let i=0;i<2&&p.companions.length<6;i++) p.companions.push(new SecretDrone()); }},
-  {id:'omni', r:'epic',     w:2,  ico:'👨‍💻', nm:'Trevor',           req:['cs1'], dsc:'Trevor takes over the HMI, no more words needed', eff:'Massive all-stat boost', fn:(p)=>{ p.damage=(p.damage*1.5)|0; p.fireRate=(p.fireRate*.6)|0; p.speed*=1.25; p.maxHp+=80; }},
+  {id:'omni', r:'epic',     w:2,  ico:'👨‍💻', nm:'Trevor',           req:['cs1'], dsc:'Trevor takes over the HMI, no more words needed', eff:'Massive all-stat boost', fn:(p)=>{ p.damage=(p.damage*1.5)|0; p.fireRate=(p.fireRate*.6)|0; p.speed*=1.25; p.maxHp+=80; p.hp=Math.min(p.hp+80,p.maxHp); }},
   {id:'nuke', r:'epic',     w:4,  ico:'💣', nm:'Siauw Yu Hern',   dsc:'Drop a fatty on the field',     eff:'Gain 3 nuke charges (press N)', fn:(p)=>{ p.nukes+=3; p.siauwNuke=true; }},
   {id:'fa1',  r:'epic',     w:3,  ico:'🔫', nm:'AD Expansion',    req:['fr2'], dsc:'5AD is running out of missiles!',eff:'-55% reload time', fn:(p)=>{ p.fireRate=(p.fireRate*.45)|0; p.msvLevel=Math.max(p.msvLevel,3); }},
 ];
@@ -1640,11 +1695,17 @@ function pickUpgrades(n=3, onlyCommon=false) {
     if(onlyCommon && u.r !== 'common') return false;
     return true;
   });
-  for(let i=eligible.length-1;i>0;i--){
-    const j=(Math.random()*(i+1))|0;
-    [eligible[i],eligible[j]]=[eligible[j],eligible[i]];
+  const pool = eligible.map(u => ({ u, w: u.w * rarityWaveMul(u.r) }));
+  const result = [];
+  while(result.length < n && pool.length > 0) {
+    const total = pool.reduce((s,e) => s+e.w, 0);
+    let r = Math.random() * total;
+    let chosen = pool.length - 1;
+    for(let i = 0; i < pool.length; i++) { r -= pool[i].w; if(r <= 0){ chosen=i; break; } }
+    result.push(pool[chosen].u);
+    pool.splice(chosen, 1);
   }
-  return eligible.slice(0, n);
+  return result;
 }
 
 function showUpgrades(onlyCommon=false, afterPick=null) {
@@ -1760,6 +1821,8 @@ function collide() {
           p.dead=true; break;
         }
       }
+      // vs balloons
+      if(!p.dead) for(const b of BALLOONS) if(!b.dead && Math.abs(p.x-b.x)<4 && Math.abs(p.y-b.y)<5){ b.pop(); p.dead=true; break; }
       // vs boss
       if(!p.dead && BOSS && !BOSS.dead && Math.abs(p.x-BOSS.x)<20 && Math.abs(p.y-BOSS.y)<14){
         if(BOSS.hit(p.dmg)) { BOSS=null; PROJS.splice(i,1); PL.hp=PL.maxHp; showUpgrades(); return; }
@@ -1783,7 +1846,7 @@ function drawHUD() {
   pr(bx,by,bw,bh,'#2a0000');
   pr(bx,by,(bw*PL.hp/PL.maxHp)|0,bh,'#cc2200');
   pr(bx,by,(bw*PL.hp/PL.maxHp)|0,1,'#ff5500');
-  pt(bx, by+bh+2.5, `HP ${PL.hp}/${PL.maxHp}`, '#dd4422', 1.5);
+  pt(bx, by+bh+2.5, `HP ${Math.ceil(PL.hp)}/${PL.maxHp}`, '#dd4422', 1.5);
 
   // Shield bar
   if(PL.hasShield){
@@ -2021,6 +2084,7 @@ const CODEX_CHAINS = [
   { name:'↩️ Ricochet Chain',    ids:['ric1','ric2'] },
   { name:'🗣️ Crew Chain',        ids:['cs1','omni'] },
   { name:'🚪 Isaac Chain',       ids:['rac1','rac2'] },
+  { name:'🟩 Camo Chain',        ids:['camo','camo2'] },
 ];
 function buildCodex(){
   const chainedIds=new Set(CODEX_CHAINS.flatMap(c=>c.ids));
@@ -2099,6 +2163,12 @@ function loop(ts){
       for(const p of PROJS) p.update(dt);
       for(const v of VAPECLOUDS) v.update(dt);
       for(let i=VAPECLOUDS.length-1;i>=0;i--) if(VAPECLOUDS[i].dead) VAPECLOUDS.splice(i,1);
+      balloonTimer+=dt*1000;
+      if(balloonTimer>=BALLOON_INTERVAL){ balloonTimer=0; BALLOONS.push(new Balloon()); }
+      for(const b of BALLOONS) b.update(dt);
+      for(let i=BALLOONS.length-1;i>=0;i--) if(BALLOONS[i].dead) BALLOONS.splice(i,1);
+      for(const h of HPACKS) h.update(dt);
+      for(let i=HPACKS.length-1;i>=0;i--) if(HPACKS[i].dead) HPACKS.splice(i,1);
       updateParts(dt);
       updateNotes(dt);
       if(siauwDrop){ siauwDrop.update(dt); if(siauwDrop.dead) siauwDrop=null; }
@@ -2115,6 +2185,8 @@ function loop(ts){
     }
     // Render
     for(const v of VAPECLOUDS) v.draw();
+    for(const b of BALLOONS) b.draw();
+    for(const h of HPACKS)   h.draw();
     for(const p of PROJS)  p.draw();
     for(const e of ENEMIES) e.draw();
     if(BOSS && !BOSS.dead)  BOSS.draw();
