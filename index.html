@@ -9,22 +9,27 @@
 body{background:#000;display:flex;flex-direction:column;align-items:center;
   justify-content:center;min-height:100vh;min-height:100dvh;
   font-family:'Courier New',monospace;color:#fff;overflow:hidden;user-select:none}
-#wrap{position:relative;width:min(800px,100vw)}
+#shell{display:flex;flex-direction:column;align-items:stretch;width:min(800px,100vw)}
+#wrap{position:relative;width:100%}
 canvas{display:block;width:100%;height:auto;
   image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
 /* ─── On-screen touch controls ─── */
-#mCtrl{position:absolute;bottom:0;left:0;right:0;height:22%;
-  display:flex;pointer-events:all;z-index:5}
-#mLeft,#mRight{flex:1;display:flex;align-items:center;justify-content:center;
-  font-size:2.2rem;color:rgba(255,255,255,.22);
-  background:rgba(255,255,255,.04);border-top:1px solid rgba(255,255,255,.08);
-  user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
-#mLeft{border-right:1px solid rgba(255,255,255,.08)}
-#mLeft:active,#mRight:active{background:rgba(255,255,255,.12)}
-#mPause{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);
+#mCtrl{width:100%;height:110px;display:none;flex-direction:row;align-items:center;
+  justify-content:center;background:#000;border-top:1px solid rgba(255,255,255,.08);pointer-events:all}
+#joystickWrap{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+#joystick{position:relative;width:88px;height:88px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.25);background:rgba(255,255,255,.04);
+  touch-action:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#joystickKnob{position:absolute;width:38px;height:38px;border-radius:50%;
+  background:rgba(255,255,255,.35);top:50%;left:50%;
+  transform:translate(-50%,-50%);pointer-events:none;transition:background .1s}
+#joystick.active #joystickKnob{background:rgba(255,255,255,.6)}
+#mPause,#mFullscreen{position:absolute;top:6px;background:rgba(0,0,0,.55);
   border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.5);
   font-size:.9rem;padding:.28rem .55rem;cursor:pointer;
   pointer-events:all;z-index:6;touch-action:manipulation;display:none}
+#mPause{right:6px}
+#mFullscreen{right:52px}
 /* ─── Responsive upgrade cards ─── */
 @media(max-width:550px){
   #upgCards{flex-direction:column;align-items:center;gap:.6rem}
@@ -104,14 +109,10 @@ canvas{display:block;width:100%;height:auto;
 </style>
 </head>
 <body>
+<div id="shell">
 <div id="wrap">
 <canvas id="gc"></canvas>
-
-<!-- ── Mobile controls (shown during gameplay) ── -->
-<div id="mCtrl" style="display:none">
-  <div id="mLeft">◀</div>
-  <div id="mRight">▶</div>
-</div>
+<button id="mFullscreen">⛶</button>
 <button id="mPause">⏸</button>
 
 <!-- ── MENU ── -->
@@ -171,6 +172,17 @@ canvas{display:block;width:100%;height:auto;
 </div>
 
 </div><!-- #wrap -->
+
+<!-- ── Mobile controls (shown during gameplay) ── -->
+<div id="mCtrl" style="display:none">
+  <div id="joystickWrap">
+    <div id="joystick">
+      <div id="joystickKnob"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- #shell -->
 
 <!-- Firebase (optional — fill FIREBASE_CFG below to enable online leaderboard) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -1876,21 +1888,59 @@ const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 // Show/hide mobile controls based on game state
 function setMobileCtrl(visible) {
   if(!isTouch) return;
-  document.getElementById('mCtrl').style.display  = visible ? 'flex'  : 'none';
-  document.getElementById('mPause').style.display = visible ? 'block' : 'none';
+  document.getElementById('mCtrl').style.display        = visible ? 'flex'  : 'none';
+  document.getElementById('mPause').style.display       = visible ? 'block' : 'none';
+  document.getElementById('mFullscreen').style.display  = visible ? 'block' : 'none';
 }
+document.getElementById('mFullscreen').addEventListener('click', ()=>{
+  const el = document.getElementById('shell');
+  if(!document.fullscreenElement){
+    (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen).call(el);
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen).call(document);
+  }
+});
 
-// Touch buttons → simulate key state
-function bindTouch(id, key) {
-  const el = document.getElementById(id);
-  const on  = e => { e.preventDefault(); K[key]=true;  };
-  const off = e => { e.preventDefault(); K[key]=false; };
-  el.addEventListener('touchstart',  on,  {passive:false});
-  el.addEventListener('touchend',    off, {passive:false});
-  el.addEventListener('touchcancel', off, {passive:false});
-}
-bindTouch('mLeft',  'ArrowLeft');
-bindTouch('mRight', 'ArrowRight');
+// Virtual joystick
+(function(){
+  const joy   = document.getElementById('joystick');
+  const knob  = document.getElementById('joystickKnob');
+  const R     = 44; // outer radius
+  const DEAD  = 10; // dead zone px
+  let tid = null;
+
+  function setKeys(dx){
+    K['ArrowLeft']  = dx < -DEAD;
+    K['ArrowRight'] = dx >  DEAD;
+  }
+  function moveKnob(dx, dy){
+    const len = Math.hypot(dx, dy);
+    const clamp = Math.min(len, R);
+    const nx = len>0 ? dx/len*clamp : 0;
+    const ny = len>0 ? dy/len*clamp : 0;
+    knob.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`;
+  }
+  function reset(){
+    tid=null; setKeys(0); moveKnob(0,0); joy.classList.remove('active');
+  }
+  joy.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    const t = e.changedTouches[0]; tid=t.identifier;
+    joy.classList.add('active');
+  },{passive:false});
+  joy.addEventListener('touchmove', e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches){
+      if(t.identifier!==tid) continue;
+      const r = joy.getBoundingClientRect();
+      const dx = t.clientX - (r.left + r.width/2);
+      const dy = t.clientY - (r.top  + r.height/2);
+      setKeys(dx); moveKnob(dx, dy);
+    }
+  },{passive:false});
+  joy.addEventListener('touchend',    e=>{ for(const t of e.changedTouches) if(t.identifier===tid) reset(); },{passive:false});
+  joy.addEventListener('touchcancel', e=>{ for(const t of e.changedTouches) if(t.identifier===tid) reset(); },{passive:false});
+})();
 document.getElementById('mPause').addEventListener('click', ()=>togglePause());
 
 function togglePause(){
