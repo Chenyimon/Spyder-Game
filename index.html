@@ -2100,23 +2100,40 @@ try{
   }
 } catch(e){ console.error('[SPYDER] Firebase init failed:', e); fbDB=null; }
 
+function lbDedup(rows){
+  const map={};
+  for(const r of rows){ const n=r.name||'ANON'; if(!map[n]||r.score>map[n].score) map[n]=r; }
+  return Object.values(map).sort((a,b)=>b.score-a.score);
+}
+
 async function lbSave(name, sc, wave) {
   if(fbDB){
-    try{ await fbDB.collection('spyder_scores').add({name,score:sc,wave,ts:new Date()}); console.log('[SPYDER] Score saved to Firebase'); }
-    catch(e){ console.error('[SPYDER] Firebase save failed:', e); }
+    try{
+      const docRef=fbDB.collection('spyder_scores').doc(name);
+      const existing=await docRef.get();
+      if(!existing.exists || sc>existing.data().score){
+        await docRef.set({name,score:sc,wave,ts:new Date()});
+        console.log('[SPYDER] Score saved to Firebase');
+      } else { console.log('[SPYDER] Existing score higher, not updating'); }
+    } catch(e){ console.error('[SPYDER] Firebase save failed:', e); }
   }
   // Always save locally too
-  const lb=lbLocal(); lb.push({name,score:sc,wave});
-  lb.sort((a,b)=>b.score-a.score); lb.splice(10);
-  localStorage.setItem('spyderLB2',JSON.stringify(lb));
+  const lb=lbLocal();
+  const idx=lb.findIndex(e=>e.name===name);
+  if(idx===-1||sc>lb[idx].score){
+    if(idx!==-1) lb.splice(idx,1);
+    lb.push({name,score:sc,wave});
+    lb.sort((a,b)=>b.score-a.score); lb.splice(10);
+    localStorage.setItem('spyderLB2',JSON.stringify(lb));
+  }
 }
 
 async function lbGet() {
   if(fbDB){
     try{
-      const snap=await fbDB.collection('spyder_scores').orderBy('score','desc').limit(10).get();
+      const snap=await fbDB.collection('spyder_scores').orderBy('score','desc').limit(50).get();
       console.log('[SPYDER] Firebase read OK, docs:', snap.docs.length);
-      return snap.docs.map(d=>d.data());
+      return lbDedup(snap.docs.map(d=>d.data())).slice(0,10);
     } catch(e){ console.error('[SPYDER] Firebase read failed:', e); }
   }
   console.warn('[SPYDER] Falling back to localStorage');
@@ -2128,8 +2145,8 @@ function lbLocal(){ try{ return JSON.parse(localStorage.getItem('spyderLB2')||'[
 async function lbGetAll() {
   if(fbDB){
     try{
-      const snap=await fbDB.collection('spyder_scores').orderBy('score','desc').limit(200).get();
-      return snap.docs.map(d=>d.data());
+      const snap=await fbDB.collection('spyder_scores').orderBy('score','desc').limit(500).get();
+      return lbDedup(snap.docs.map(d=>d.data()));
     } catch(e){ console.error('[SPYDER] Firebase readAll failed:', e); }
   }
   return lbLocal();
