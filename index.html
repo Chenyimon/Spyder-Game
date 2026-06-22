@@ -131,7 +131,7 @@ canvas{display:block;width:100%;height:auto;
 <!-- ── UPGRADE CODEX ── -->
 <div id="upgCodex">
   <div style="position:sticky;top:0;width:100%;max-width:680px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.93);padding:.5rem 0;z-index:1;flex-shrink:0">
-    <h2 style="margin:0">⚙ UPGRADE CODEX</h2>
+    <h2 id="codexTitle" style="margin:0;transition:opacity .2s">⚙ UPGRADE CODEX</h2>
     <button class="btn grey" id="codexCloseBtn" style="margin:0;padding:.3rem .8rem;min-height:36px;font-size:.75rem">[ BACK ]</button>
   </div>
   <div id="codexContent"></div>
@@ -227,6 +227,10 @@ const GW = CW / P, GH = CH / P;           // game resolution 160×120
 const canvas = document.getElementById('gc');
 const ctx    = canvas.getContext('2d');
 canvas.width  = CW; canvas.height = CH;
+
+const WING_IMGS = [new Image(), new Image()];
+WING_IMGS[0].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAKCAYAAACJxx+AAAAAq0lEQVQYGWWQSwoCMRBEX8bBD4IbdeclPLBn8Qi6lgF1owgRVPzMTH7aiQ7C1KbTVemqTlRYzuBW0kC/YDIAqR/kjdA+BKGyNh+ZKLJrOyRB7O3nYkccUr4I4ZcrHmblpKicUR9/eJCVtRARVWHpzcdTaWSH8C/adeC5jdOa47WJiJOcu3gfcHVaJTl838spw+5rTOXRl7hiHFJhMYQNwdSOe2Fw8kcalSzhDZnAStNaZHsxAAAAAElFTkSuQmCC';
+WING_IMGS[1].src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAKCAYAAACJxx+AAAAAuklEQVQYGV1QMQoCQQycZO8aUbDwAdfZ2Pk63+CzLO1tBBtBEATxUMQ9k5jd1RNuYJvMZGYn1K3HCNMAwGBaAQRweAGLJTBfgZ0ZovOB/R4NHCLVXU2mZWnWwD17KIVIZGkZ0JvADvteoMTi6QVy7KAPBd85/+HtkT2J51d0yk5UEZTpT8Munv8g8KQInfRtKrl2FigE7c5r5sJeGVzIZK1R0W4jRk26S0G6g7eqVKPguolpmgJzqJjgAybvTc3vdfmOAAAAAElFTkSuQmCC';
 ctx.imageSmoothingEnabled = false;
 
 const ST = { MENU:'menu', PLAY:'play', INTRO:'intro', BOSS:'boss', UPG:'upg', OVER:'over', LB:'lb', PAUSED:'paused' };
@@ -676,6 +680,13 @@ function drawEnemyBullet(gx, gy, col='#ff3300') {
   pr(gx,   gy,   1, 1, '#ffcc00');
 }
 
+function drawWingstop(gx, gy, spriteIdx) {
+  const img = WING_IMGS[spriteIdx || 0];
+  if(img.complete && img.naturalWidth) {
+    ctx.drawImage(img, (gx-4)*P, (gy-5)*P, 8*P, 10*P);
+  }
+}
+
 function drawCompanion(gx, gy) {
   pr(gx-3, gy-2, 6, 4, '#1a4a1a');
   pr(gx-4, gy-1, 8, 2, '#144414');
@@ -843,8 +854,8 @@ const PL = {
   fireTimer:0,
   iFrames:0,
   dead:false,
-  hpRegen:0, disneyBoost:false, confinement:false,
-  ricochet:false, maxBounces:1, salakau:false, rsd:false, enemyCut:0, lazyMissile:false, lazyTimer:0,
+  hpRegen:0, disneyBoost:false, disneyEnsemble:false, confinement:false, eczema:false, wingstop:false,
+  ricochet:false, maxBounces:1, salakau:false, rsd:false, enemyBulletSlow:false, enemyCut:0, lazyMissile:false, lazyTimer:0,
   dmgReduce:0, camoVis:false, camoDodge:0, freshTyresVis:false, titaniumVis:false, isoVis:false,
   radarVis:false, noDuffVis:false, aslanVis:false, musicNotesVis:false, msvLevel:0, siauwNuke:false, barrageVis:false, paradeVis:false,
   ownedUpgs: new Set(),
@@ -861,8 +872,8 @@ function resetPlayer() {
   PL.spreadMul=1;
   PL.nukes=0;
   PL.fireTimer=0; PL.iFrames=0; PL.dead=false;
-  PL.hpRegen=0; PL.disneyBoost=false; PL.confinement=false;
-  PL.ricochet=false; PL.maxBounces=1; PL.salakau=false; PL.rsd=false; PL.enemyCut=0; PL.lazyMissile=false; PL.lazyTimer=0;
+  PL.hpRegen=0; PL.disneyBoost=false; PL.disneyEnsemble=false; PL.confinement=false; PL.eczema=false; PL.wingstop=false;
+  PL.ricochet=false; PL.maxBounces=1; PL.salakau=false; PL.rsd=false; PL.enemyBulletSlow=false; PL.enemyCut=0; PL.lazyMissile=false; PL.lazyTimer=0;
   PL.dmgReduce=0; PL.camoVis=false; PL.camoDodge=0; PL.freshTyresVis=false; PL.titaniumVis=false; PL.isoVis=false;
   PL.radarVis=false; PL.noDuffVis=false; PL.aslanVis=false; PL.musicNotesVis=false; PL.msvLevel=0; PL.siauwNuke=false; PL.barrageVis=false; PL.paradeVis=false;
   PL.ownedUpgs = new Set();
@@ -873,7 +884,8 @@ function resetPlayer() {
 
 function updatePlayer(dt) {
   const disneyActive = PL.disneyBoost && PL.hp < PL.maxHp * 0.5;
-  const spd = PL.speed * dt * 60 * (disneyActive ? 1.35 : 1);
+  const disneySpeedMul = disneyActive ? (PL.disneyEnsemble ? 1.70 : 1.35) : 1;
+  const spd = PL.speed * dt * 60 * disneySpeedMul;
   if(K['ArrowLeft'] ||K['a']||K['A']) PL.x-=spd;
   if(K['ArrowRight']||K['d']||K['D']) PL.x+=spd;
   // Limited vertical dodge
@@ -891,7 +903,7 @@ function updatePlayer(dt) {
     }
   }
 
-  const effectiveFR = disneyActive ? (PL.fireRate*.7)|0 : PL.fireRate;
+  const effectiveFR = disneyActive ? (PL.fireRate*(PL.disneyEnsemble ? 0.40 : 0.70))|0 : PL.fireRate;
   PL.fireTimer+=dt*1000;
   if(PL.fireTimer>=effectiveFR){ PL.fireTimer=0; fireMissiles(); }
 
@@ -920,7 +932,9 @@ function fireMissiles() {
   const angles = spreads[Math.min(PL.projCount,8)].map(a=>a*PL.spreadMul);
   for(const a of angles){
     const sp=5.5;
-    PROJS.push(new Proj(PL.x, PL.y-4, Math.sin(a)*sp, -Math.cos(a)*sp, true, PL.damage, PL.homing));
+    const wp=new Proj(PL.x, PL.y-4, Math.sin(a)*sp, -Math.cos(a)*sp, true, PL.damage, PL.homing);
+    if(PL.wingstop){ wp.isWingstop=true; wp.wingSprite=Math.random()<0.5?0:1; }
+    PROJS.push(wp);
   }
 }
 
@@ -1218,6 +1232,34 @@ class RBS70 {
   draw(){ drawRBS70((this.x)|0, (this.y)|0); }
 }
 
+class RBS70Dual {
+  constructor() {
+    const idx = PL.companions.length;
+    const side = idx%2===0 ? -1 : 1;
+    this.off = side*(34+Math.floor(idx/2)*22);
+    this.x = PL.x+this.off;
+    this.y = GH-7;
+    this.fireTimer = Math.random()*800;
+    this.fireRate  = 900;
+  }
+  update(dt) {
+    this.x += (PL.x+this.off-this.x)*.12;
+    this.y = GH-7;
+    this.x = Math.max(8, Math.min(GW-8, this.x));
+    this.fireTimer+=dt*1000;
+    if(this.fireTimer>=this.fireRate){
+      this.fireTimer=0;
+      const t=nearestEnemy(this.x,this.y);
+      if(t){
+        const dx=t.x-this.x, dy=t.y-this.y, base=Math.atan2(dy,dx);
+        for(const spread of [-0.14, 0.14])
+          PROJS.push(new Proj(this.x,this.y-10, Math.cos(base+spread)*4.5, Math.sin(base+spread)*4.5, true, (PL.damage*.55)|0, PL.homing));
+      }
+    }
+  }
+  draw(){ drawRBS70((this.x)|0, (this.y)|0); }
+}
+
 class SecretDrone {
   constructor() {
     const idx = PL.companions.length;
@@ -1250,7 +1292,8 @@ const PROJS=[];
 
 class Proj {
   constructor(x,y,vx,vy,isPlayer,dmg,homing=false){
-    this.x=x; this.y=y; this.vx=vx; this.vy=vy;
+    const eSlow = (!isPlayer && PL.enemyBulletSlow) ? 0.5 : 1;
+    this.x=x; this.y=y; this.vx=vx*eSlow; this.vy=vy*eSlow;
     this.isPlayer=isPlayer; this.dmg=dmg; this.dead=false;
     this.homing=homing; this.target=null;
     this.bounces=0; this.trailTimer=0;
@@ -1282,7 +1325,8 @@ class Proj {
   }
   draw(){
     if(this.isPlayer){
-      if(this.homing) drawHomingMissile((this.x)|0,(this.y)|0);
+      if(this.isWingstop) drawWingstop((this.x)|0,(this.y)|0,this.wingSprite);
+      else if(this.homing) drawHomingMissile((this.x)|0,(this.y)|0);
       else drawMissile((this.x)|0,(this.y)|0);
     } else {
       drawEnemyBullet((this.x)|0,(this.y)|0,'#ff3300');
@@ -1431,12 +1475,13 @@ class Enemy {
     this.vx=(Math.random()-.5)*this.spd*2;
     this.vy=this.spd*.4;
     this.ft=Math.random()*this.fr;
-    this.pt=0; this.flash=0; this.dead=false;
+    this.pt=0; this.flash=0; this.dead=false; this.freeze=0;
   }
 
   update(dt) {
     this.pt+=dt*1000; this.ft+=dt*1000;
     this.flash=Math.max(0,this.flash-dt*6);
+    if(this.freeze>0){ this.freeze-=dt*1000; return; }
     const spd = this.spd * (PL.confinement ? Math.min(0.5, enemySlowMul) : enemySlowMul);
 
     switch(this.pat){
@@ -1729,28 +1774,36 @@ const UPGDEFS = [
   {id:'hp2',  r:'uncommon', w:20, ico:'🛡️', nm:'Titanium Carriage', req:['hp1'], dsc:'Desean managed to mount titanium onto the launcher', eff:'+100 max HP', fn:(p)=>{ p.maxHp+=100; p.hp=Math.min(p.hp+100,p.maxHp); p.titaniumVis=true; }},
   {id:'mlu1', r:'epic',     w:3,  ico:'⬆️', nm:'MLU',              req:['hp2'], dsc:'Matthew managed to steal one from 3DA for use', eff:'+200 max HP, 10% damage reduction', fn:(p)=>{ p.maxHp+=200; p.hp=Math.min(p.hp+200,p.maxHp); p.dmgReduce=(p.dmgReduce||0)+0.10; }},
   {id:'conf', r:'uncommon', w:18, ico:'🎬', nm:'Confinement',       dsc:'Make all the enemies watch A Few Good Men before each wave', eff:'All enemy movement permanently reduced by 50%', fn:(p)=>{ p.confinement=true; }},
-  {id:'doc1', r:'uncommon', w:16, ico:'🩺', nm:"Doctor's Deferment", dsc:'Jacob comes back to heal the launcher', eff:'+3 HP/sec passive regen', fn:(p)=>{ p.hpRegen+=3; }},
-  {id:'par1', r:'uncommon', w:15, ico:'🎖️', nm:'Parade Season',     dsc:'Parade 2IC Juai Seu makes the men fall in before every wave', eff:'+15% dmg, −12% reload, +12% speed, +25 max HP', fn:(p)=>{ p.damage=(p.damage*1.15)|0; p.fireRate=(p.fireRate*.88)|0; p.speed*=1.12; p.maxHp+=25; p.hp=Math.min(p.hp+25,p.maxHp); p.paradeVis=true; }},
+  {id:'doc1', r:'uncommon', w:16, ico:'🩺', nm:"Doctor's Deferment", dsc:'Jacob comes back to heal the launcher', eff:'+5 HP/sec passive regen', fn:(p)=>{ p.hpRegen+=5; }},
+  {id:'doc2', r:'rare',     w:9,  ico:'🩺', nm:"Doctor's Return",    req:['doc1'], dsc:'Jacob now performs mechanical surgery on the launcher', eff:'+5 HP/sec (total 10 HP/sec)', fn:(p)=>{ p.hpRegen+=5; }},
+  {id:'doc3', r:'epic',     w:3,  ico:'🩺', nm:"Jacob's PHD",        req:['doc2'], dsc:'Jacob can now use witchcraft to heal the launcher', eff:'+10 HP/sec (total 20 HP/sec)', fn:(p)=>{ p.hpRegen+=10; }},
+  {id:'par1', r:'uncommon', w:15, ico:'🎖️', nm:'Parade Season',     dsc:'Parade 2IC Juai Seu makes the men fall in before every wave', eff:'+30% dmg, −20% reload, +15% speed, +40 max HP', fn:(p)=>{ p.damage=(p.damage*1.30)|0; p.fireRate=(p.fireRate*.80)|0; p.speed*=1.15; p.maxHp+=40; p.hp=Math.min(p.hp+40,p.maxHp); p.paradeVis=true; }},
   // ── rare ──
   {id:'ml2',  r:'rare',     w:13, ico:'🎯', nm:'Increase AD Coverage', req:['ml1'], dsc:'Overlapping fire or something like that', eff:'+2 missiles, wider cone', fn:(p)=>{ p.projCount=Math.min(8,p.projCount+2); p.spreadMul=Math.min(2.2,p.spreadMul+0.35); p.radarVis=true; }},
   {id:'sh1',  r:'rare',     w:11, ico:'☂️', nm:'Umbrella',        dsc:'No Gortex Needed',             eff:'50HP shield (regen after 5s)', fn:(p)=>{ p.maxShield=50; p.shield=p.maxShield; p.hasShield=true; }},
   {id:'co1',  r:'rare',     w:9,  ico:'🚀', nm:'RBS70',           dsc:'RBS is here to help!',         eff:'Deploy an RBS70 ground unit', fn:(p)=>{ if(p.companions.length<6) p.companions.push(new RBS70()); }},
-  {id:'dmg3', r:'rare',     w:10, ico:'☢️', nm:'Ballistic',       req:['dmg2'], dsc:'Can now load ballistic missiles',fn:(p)=>{ p.damage=(p.damage*2)|0; }},
+  {id:'co1b', r:'epic',     w:3,  ico:'🚀', nm:'41A',             req:['co1'], dsc:'41A now joins the party', eff:'Deploy an RBS70 that fires two shots at once', fn:(p)=>{ if(p.companions.length<6) p.companions.push(new RBS70Dual()); }},
+  {id:'dmg3', r:'rare',     w:10, ico:'☢️', nm:'Ballistic',       req:['dmg2'], dsc:'Can now load ballistic missiles', eff:'×2 missile damage', fn:(p)=>{ p.damage=(p.damage*2)|0; }},
   // ── rare (extra) ──
   {id:'oc1',  r:'rare',     w:11, ico:'⚙️', nm:'No-Duff Upgrade',  dsc:'Siauw got unlucky again',       eff:'+30% dmg & -30% reload', fn:(p)=>{ p.damage=(p.damage*1.3)|0; p.fireRate=(p.fireRate*.70)|0; p.noDuffVis=true; }},
+  {id:'sie1', r:'rare',     w:7,  ico:'🪖', nm:'Sierra',           req:['oc1'], dsc:'Siauw was found in the pantry when the call to upgrade was given', eff:'+60% dmg & -60% reload', fn:(p)=>{ p.damage=(p.damage*1.6)|0; p.fireRate=(p.fireRate*.40)|0; }},
   {id:'sa1',  r:'rare',     w:9,  ico:'☂️', nm:'Bigger Umbrella',  req:['sh1'], dsc:'Increased aura loss comes with this upgrade', eff:'+50 shield (or add 30HP shield)', fn:(p)=>{ if(p.hasShield){ p.maxShield+=50; p.shield=Math.min(p.shield+50,p.maxShield); } else { p.maxShield=30; p.shield=30; p.hasShield=true; } }},
   {id:'cs1',  r:'rare',     w:10, ico:'🗣️', nm:"Aslan's Speech",  dsc:'Motivates the crew and maybe make Trevor cry', eff:'+50 max HP, +30% spd', fn:(p)=>{ p.maxHp+=50; p.hp=Math.min(p.hp+50,p.maxHp); p.speed*=1.30; p.aslanVis=true; }},
   {id:'hm1',  r:'rare',     w:10, ico:'🐍', nm:'Python Seeker',   dsc:'All missiles home in on targets', fn:(p)=>{ p.homing=true; }},
   {id:'dis1', r:'rare',     w:10, ico:'🎵', nm:'Disney Music',    dsc:'Chorch motivates the crew',       eff:'When HP<50%: +35% speed & −30% reload', fn:(p)=>{ p.disneyBoost=true; p.musicNotesVis=true; }},
+  {id:'dis2', r:'epic',     w:3,  ico:'🎶', nm:'Disney Ensemble',  req:['dis1'], dsc:'Chorch brings out the band', eff:'When HP<50%: +70% speed & −60% reload instead', fn:(p)=>{ p.disneyEnsemble=true; }},
   {id:'ric1', r:'rare',     w:9,  ico:'↩️', nm:'Ricochet',        dsc:'Josher convinces the missiles they can bounce', eff:'Missiles bounce once to another enemy on hit', fn:(p)=>{ p.ricochet=true; }},
   {id:'ric2', r:'epic',    w:3,  ico:'↩️', nm:'More Ricochet',   req:['ric1'], dsc:'Josher filed a 12-page AAR on why one bounce was insufficient', eff:'Missiles now bounce twice', fn:(p)=>{ p.maxBounces=2; }},
   {id:'sal1', r:'rare',     w:8,  ico:'💨', nm:'Salakau',         dsc:'Miles added vape to the fuse',    eff:'Missiles leave a lingering vape cloud that damages enemies', fn:(p)=>{ p.salakau=true; }},
   {id:'rsd1', r:'uncommon', w:17, ico:'🛌', nm:'RSD',             dsc:'Now the enemies are bored too',   eff:'Enemy fire rate halved', fn:(p)=>{ p.rsd=true; }},
+  {id:'rsd2', r:'rare',     w:8,  ico:'😴', nm:'RSAF Safety Conference', req:['rsd1'], dsc:'Absolute snooze fest', eff:'Enemy projectiles travel 50% slower', fn:(p)=>{ p.enemyBulletSlow=true; }},
   {id:'rac1', r:'uncommon', w:15, ico:'🚪', nm:'Racist Remarks',  dsc:'Even the enemies are offended by Isaac', eff:'2 fewer enemies spawn each wave', fn:(p)=>{ p.enemyCut+=2; }},
   {id:'rac2', r:'rare',     w:8,  ico:'🚪', nm:'SUPER',           req:['rac1'], dsc:"Jerome's odour chases the enemies away", eff:'4 fewer enemies spawn each wave', fn:(p)=>{ p.enemyCut+=4; }},
   {id:'camo', r:'uncommon', w:14, ico:'🟩', nm:'Camo On',        dsc:"Chenyi's favourite", eff:'30% chance enemy projectiles miss', fn:(p)=>{ p.camoVis=true; p.camoDodge=0.30; }},
   {id:'camo2',r:'rare',     w:8,  ico:'🟩', nm:'Turn Out',       req:['camo'], dsc:'Disorient your enemies and give them anxiety', eff:'50% chance enemy projectiles miss', fn:(p)=>{ p.camoDodge=0.50; }},
   {id:'laz1', r:'uncommon', w:14, ico:'🪙', nm:'Lazy Missile',    dsc:'Brennen was so lazy he left coins on the fire button to shoot by itself', eff:'Auto-fires a slow missile at enemies every 2.5s', fn:(p)=>{ p.lazyMissile=true; }},
+  {id:'ecz1', r:'rare',     w:8,  ico:'🤧', nm:'Eczema',           dsc:'Juaiseu spreads eczema to the enemies', eff:'All enemies bleed 4 HP/sec continuously', fn:(p)=>{ p.eczema=true; }},
+  {id:'wing', r:'rare',     w:8,  ico:'🍗', nm:'Wingstop',         dsc:"Leon ate too much wingstop. We had to toss it out of the cabin.", eff:'Projectiles become chicken wings — hits freeze enemies for 0.2s', fn:(p)=>{ p.wingstop=true; }},
   // ── epic ──
   {id:'ml3',  r:'epic',     w:4,  ico:'🌟', nm:'Missile Barrage', req:['ml2'], dsc:'AELG added 8 more canisters', eff:'+3 missiles in spread', fn:(p)=>{ p.projCount=Math.min(8,p.projCount+3); p.barrageVis=true; }},
   {id:'sh2',  r:'epic',     w:3,  ico:'☂️', nm:'Biggest Umbrella', req:['sa1'], dsc:'Entire OCS now scared of you', eff:'150HP shield (regen 3s)', fn:(p)=>{ p.maxShield=150; p.shield=p.maxShield; p.hasShield=true; p.shieldRegenDelay=3000; }},
@@ -1903,6 +1956,7 @@ function collide() {
       for(const e of ENEMIES){
         if(!e.dead && e!==p.lastHit && Math.abs(p.x-e.x)<7 && Math.abs(p.y-e.y)<7){
           e.hit(p.dmg);
+          if(p.isWingstop && !e.dead) e.freeze=200;
           if(PL.ricochet && p.bounces<PL.maxBounces){
             // bounce to nearest other living enemy
             let next=null, bestDist=Infinity;
@@ -2226,9 +2280,14 @@ const CODEX_CHAINS = [
   { name:'🫡 MSV / Reload Chain',ids:['fr1','fr2','fa1'] },
   { name:'📷 Launcher Chain',    ids:['ml1','ml2','ml3'] },
   { name:'↩️ Ricochet Chain',    ids:['ric1','ric2'] },
+  { name:'🛌 RSD Chain',         ids:['rsd1','rsd2'] },
   { name:'🗣️ Crew Chain',        ids:['cs1','omni'] },
   { name:'🚪 Isaac Chain',       ids:['rac1','rac2'] },
   { name:'🟩 Camo Chain',        ids:['camo','camo2'] },
+  { name:'🩺 Doctors Chain',     ids:['doc1','doc2','doc3'] },
+  { name:'🚀 RBS Chain',         ids:['co1','co1b'] },
+  { name:'🎵 Disney Chain',      ids:['dis1','dis2'] },
+  { name:'⚙️ No-Duff Chain',     ids:['oc1','sie1'] },
 ];
 function buildCodex(){
   const chainedIds=new Set(CODEX_CHAINS.flatMap(c=>c.ids));
@@ -2260,7 +2319,13 @@ function buildCodex(){
 document.getElementById('codexBtn').addEventListener('click',()=>{
   buildCodex();
   document.getElementById('menuOv').classList.add('hide');
-  document.getElementById('upgCodex').classList.add('show');
+  const cx=document.getElementById('upgCodex');
+  cx.scrollTop=0;
+  document.getElementById('codexTitle').style.opacity='1';
+  cx.classList.add('show');
+});
+document.getElementById('upgCodex').addEventListener('scroll',function(){
+  document.getElementById('codexTitle').style.opacity=this.scrollTop>15?'0':'1';
 });
 document.getElementById('codexCloseBtn').addEventListener('click',()=>{
   document.getElementById('upgCodex').classList.remove('show');
@@ -2303,6 +2368,7 @@ function loop(ts){
       updatePlayer(dt);
       updateWave(dt);
       for(const e of ENEMIES) e.update(dt);
+      if(PL.eczema) for(const e of ENEMIES){ if(!e.dead){ e.hp-=4*dt; if(e.hp<=0&&!e.dead){ e.dead=true; spawnExplosion(e.x,e.y,e.type==='b'?28:14); score+=e.sc; } } }
       if(BOSS) BOSS.update(dt);
       for(const p of PROJS) p.update(dt);
       for(const v of VAPECLOUDS) v.update(dt);
