@@ -135,7 +135,7 @@ canvas{display:block;width:100%;height:auto;
 
 <!-- ── UPGRADE CODEX ── -->
 <div id="upgCodex">
-  <div style="position:sticky;top:0;width:100%;max-width:680px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.93);padding:.5rem 0;z-index:1;flex-shrink:0">
+  <div id="codexHeader" style="position:sticky;top:0;width:100%;max-width:680px;display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;z-index:1;flex-shrink:0;transition:background .2s">
     <h2 id="codexTitle" style="margin:0;transition:opacity .2s">⚙ UPGRADE CODEX</h2>
     <button class="btn grey" id="codexCloseBtn" style="margin:0;padding:.3rem .8rem;min-height:36px;font-size:.75rem">[ BACK ]</button>
   </div>
@@ -1298,10 +1298,15 @@ const PROJS=[];
 class Proj {
   constructor(x,y,vx,vy,isPlayer,dmg,homing=false){
     const eSlow = (!isPlayer && PL.enemyBulletSlow) ? 0.5 : 1;
-    this.x=x; this.y=y; this.vx=vx*eSlow; this.vy=vy*eSlow;
+    this.x=x; this.y=y;
     this.isPlayer=isPlayer; this.dmg=dmg; this.dead=false;
     this.homing=homing; this.target=null;
     this.bounces=0; this.trailTimer=0;
+    if(homing && isPlayer){
+      const t=nearestEnemy(x,y);
+      if(t){ const spd=Math.hypot(vx,vy), dx=t.x-x, dy=t.y-y, len=Math.hypot(dx,dy); vx=dx/len*spd; vy=dy/len*spd; this.target=t; }
+    }
+    this.vx=vx*eSlow; this.vy=vy*eSlow;
   }
   update(dt){
     if(this.homing && this.isPlayer){
@@ -1313,7 +1318,7 @@ class Proj {
         let da=wantAngle-curAngle;
         while(da> Math.PI) da-=Math.PI*2;
         while(da<-Math.PI) da+=Math.PI*2;
-        const maxTurn=0.075*dt*60;
+        const maxTurn=0.13*dt*60;
         const turn=Math.max(-maxTurn,Math.min(maxTurn,da));
         const newAngle=curAngle+turn;
         const spd=Math.hypot(this.vx,this.vy);
@@ -1419,7 +1424,7 @@ class HealthPack{
       this.timer-=dt*1000;
       if(this.timer<=0){ this.dead=true; return; }
       if(Math.abs(PL.x-this.x)<7 && !PL.dead){
-        PL.hp=Math.min(PL.hp+25,PL.maxHp);
+        PL.hp=Math.min(PL.hp+Math.round(PL.maxHp*0.25),PL.maxHp);
         spawnExplosion(this.x,this.y,6,false);
         this.dead=true;
       }
@@ -1614,6 +1619,7 @@ class BossEnemy {
     // Special state
     this.laser=null;
     this.blasts=[];
+    this.spiralTimer=0;
     this.specialTimer=0;
     this.specialCd=this.type===1?5000:this.type===4?5500:4500;
     this.stealthed=false;
@@ -1671,6 +1677,11 @@ class BossEnemy {
         if(Math.hypot(PL.x-b.x,PL.y-b.y)<b.radius) hurtPlayer(b.dmg);
         this.blasts.splice(i,1);
       }
+    }
+    // Spiral punish — RECON fires a spiral if not hit for 7s
+    if(this.type===0 && this.arrived){
+      this.spiralTimer+=dt*1000;
+      if(this.spiralTimer>=5000){ this.spiralTimer=0; this.doSpiral(); }
     }
     // Stealth phase toggle (type 3 only)
     if(this.type===3){
@@ -1731,6 +1742,17 @@ class BossEnemy {
     }
   }
 
+  doSpiral(){
+    const sx=this.x, sy=this.y;
+    const startAngle=Math.atan2(PL.y-sy, PL.x-sx);
+    for(let i=0;i<16;i++) setTimeout(()=>{
+      if(!this.dead) PROJS.push(new Proj(sx,sy,
+        Math.cos(startAngle+i*(Math.PI/4))*this.bsp*1.15,
+        Math.sin(startAngle+i*(Math.PI/4))*this.bsp*1.15,
+        false,(this.dmg*.35)|0));
+    }, i*60);
+  }
+
   fireLaser(sweep=false){
     const dx=PL.x-this.x, dy=PL.y-this.y;
     this.laser={
@@ -1743,6 +1765,7 @@ class BossEnemy {
   hit(dmg){
     if(this.type===3 && this.stealthed) dmg=(dmg*.3)|0; // stealth deflects
     this.hp-=dmg; this.flash=1;
+    if(this.type===0) this.spiralTimer=0;
     if(this.hp<=0){ this.dead=true; spawnExplosion(this.x,this.y,60,true); score+=this.sc; return true; }
     return false;
   }
@@ -1808,7 +1831,7 @@ const UPGDEFS = [
   {id:'camo2',r:'rare',     w:8,  ico:'🟩', nm:'Turn Out',       req:['camo'], dsc:'Disorient your enemies and give them anxiety', eff:'50% chance enemy projectiles miss', fn:(p)=>{ p.camoDodge=0.50; }},
   {id:'laz1', r:'uncommon', w:14, ico:'🪙', nm:'Lazy Missile',    dsc:'Brennen was so lazy he left coins on the fire button to shoot by itself', eff:'Auto-fires a slow missile at enemies every 2.5s', fn:(p)=>{ p.lazyMissile=true; }},
   {id:'ecz1', r:'rare',     w:8,  ico:'🤧', nm:'Eczema',           dsc:'Juaiseu spreads eczema to the enemies', eff:'All enemies bleed 4 HP/sec continuously', fn:(p)=>{ p.eczema=true; }},
-  {id:'wing', r:'rare',     w:8,  ico:'🍗', nm:'Wingstop',         dsc:"Leon ate too much wingstop. We had to toss it out of the cabin.", eff:'Projectiles become chicken wings — hits freeze enemies for 0.2s', fn:(p)=>{ p.wingstop=true; }},
+  {id:'wing', r:'rare',     w:8,  ico:'🍗', nm:'Wingstop',         dsc:"Leon ate too much wingstop. We had to toss it out of the cabin.", eff:'Projectiles become chicken wings — hits freeze enemies for 0.5s', fn:(p)=>{ p.wingstop=true; }},
   // ── epic ──
   {id:'ml3',  r:'epic',     w:4,  ico:'🌟', nm:'Missile Barrage', req:['ml2'], dsc:'AELG added 8 more canisters', eff:'+3 missiles in spread', fn:(p)=>{ p.projCount=Math.min(8,p.projCount+3); p.barrageVis=true; }},
   {id:'sh2',  r:'epic',     w:3,  ico:'☂️', nm:'Biggest Umbrella', req:['sa1'], dsc:'Entire OCS now scared of you', eff:'150HP shield (regen 3s)', fn:(p)=>{ p.maxShield=150; p.shield=p.maxShield; p.hasShield=true; p.shieldRegenDelay=3000; }},
@@ -2337,10 +2360,13 @@ document.getElementById('codexBtn').addEventListener('click',()=>{
   const cx=document.getElementById('upgCodex');
   cx.scrollTop=0;
   document.getElementById('codexTitle').style.opacity='1';
+  document.getElementById('codexHeader').style.background='rgba(0,0,0,.93)';
   cx.classList.add('show');
 });
 document.getElementById('upgCodex').addEventListener('scroll',function(){
-  document.getElementById('codexTitle').style.opacity=this.scrollTop>15?'0':'1';
+  const faded=this.scrollTop>15;
+  document.getElementById('codexTitle').style.opacity=faded?'0':'1';
+  document.getElementById('codexHeader').style.background=faded?'rgba(0,0,0,0)':'rgba(0,0,0,.93)';
 });
 document.getElementById('codexCloseBtn').addEventListener('click',()=>{
   document.getElementById('upgCodex').classList.remove('show');
