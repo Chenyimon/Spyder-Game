@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SPYDER Defense — RSAF</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,button{-webkit-user-select:auto;user-select:auto}
 body{background:#000;display:flex;flex-direction:column;align-items:center;
   justify-content:center;min-height:100vh;min-height:100dvh;
   font-family:'Courier New',monospace;color:#fff;overflow:hidden;user-select:none}
@@ -1904,6 +1905,7 @@ try{
   if(FIREBASE_CFG && typeof firebase!=='undefined'){
     firebase.initializeApp(FIREBASE_CFG);
     fbDB=firebase.firestore();
+    fbDB.settings({ experimentalForceLongPolling:true, merge:true });
   }
 } catch(e){}
 
@@ -2009,13 +2011,14 @@ document.getElementById('mFullscreen').addEventListener('click', ()=>{
   },{passive:true});
   document.addEventListener('touchmove', e=>{
     if(tid === null) return;
+    e.preventDefault();
     for(const t of e.changedTouches){
       if(t.identifier !== tid) continue;
       const dx = t.clientX - ox;
       const dy = t.clientY - oy;
       setKeys(dx); moveKnob(dx, dy);
     }
-  },{passive:true});
+  },{passive:false});
   function onEnd(e){ for(const t of e.changedTouches) if(t.identifier===tid) reset(); }
   document.addEventListener('touchend',    onEnd, {passive:true});
   document.addEventListener('touchcancel', onEnd, {passive:true});
