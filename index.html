@@ -152,6 +152,7 @@ canvas{display:block;width:100%;height:auto;
 <div class="ov hide" id="lbOv" style="position:relative">
   <button class="btn grey" id="lbBackBtn" style="position:absolute;top:.5rem;right:.5rem;margin:0;padding:.3rem .8rem;min-height:36px;font-size:.75rem">[ BACK ]</button>
   <h1>TOP SCORES</h1>
+  <p id="lbStatus" style="font-size:.65rem;letter-spacing:2px;margin-bottom:.2rem;color:#555">● CHECKING...</p>
   <table id="lbTable">
     <thead><tr><th>Rank</th><th>Callsign</th><th>Score</th><th>Wave</th></tr></thead>
     <tbody id="lbBody"></tbody>
@@ -205,7 +206,7 @@ canvas{display:block;width:100%;height:auto;
 //  FIREBASE CONFIG  ← paste your Firebase web-app config here
 //  Leave as null to use local leaderboard only
 // ══════════════════════════════════════════════════════════════
-const firebaseConfig = {
+const FIREBASE_CFG = {
   apiKey: "AIzaSyAzJR0yG4Sta_ioMycoAaCH9KXrn4ZmRoc",
   authDomain: "spyder-game-1e138.firebaseapp.com",
   projectId: "spyder-game-1e138",
@@ -871,7 +872,7 @@ function resetPlayer() {
 }
 
 function updatePlayer(dt) {
-  const disneyActive = PL.disneyBoost && PL.hp < PL.maxHp * 0.4;
+  const disneyActive = PL.disneyBoost && PL.hp < PL.maxHp * 0.5;
   const spd = PL.speed * dt * 60 * (disneyActive ? 1.35 : 1);
   if(K['ArrowLeft'] ||K['a']||K['A']) PL.x-=spd;
   if(K['ArrowRight']||K['d']||K['D']) PL.x+=spd;
@@ -1395,28 +1396,28 @@ class Enemy {
         this.hp=this.maxHp=(22*ws)|0;
         this.spd = wave<=2 ? .28+wave*.07  : .48+wave*.05;
         this.fr  = wave<=2 ? Math.max(1200,3400-wave*150) : Math.max(600,2100-wave*110);
-        this.dmg = wave<=2 ? 3+wave        : (4+wave*2)|0;
+        this.dmg = wave<=2 ? 3+wave        : (4+wave*1.5)|0;
         this.sc=10+wave; this.bsp=wave<=2 ? .75+wave*.07 : 1.3+wave*.10;
         this.col='#558866'; break;
       case 'b': // bomber
         this.hp=this.maxHp=(55*ws)|0;
         this.spd = wave<=2 ? .18+wave*.04  : .30+wave*.025;
         this.fr  = wave<=2 ? Math.max(1400,3200-wave*130) : Math.max(600,1800-wave*70);
-        this.dmg = wave<=2 ? 8+wave        : (10+wave*2.2)|0;
+        this.dmg = wave<=2 ? 8+wave        : (10+wave*1.6)|0;
         this.sc=24+wave*2; this.bsp=wave<=2 ? .65+wave*.05 : 1.0+wave*.07;
         this.col='#334455'; break;
       case 'e': // elite
         this.hp=this.maxHp=(38*ws)|0;
         this.spd = wave<=2 ? .5+wave*.06   : .90+wave*.07;
         this.fr  = wave<=2 ? Math.max(1000,3000-wave*150) : Math.max(450,1500-wave*75);
-        this.dmg = wave<=2 ? 6+wave        : (8+wave*1.5)|0;
+        this.dmg = wave<=2 ? 6+wave        : (8+wave*1.1)|0;
         this.sc=20+wave*2; this.bsp=wave<=2 ? .95+wave*.08 : 1.8+wave*.13;
         this.col='#223344'; break;
       case 'l': // laser trooper (wave 10+)
         this.hp=this.maxHp=(50*ws)|0;
         this.spd = .55+wave*.035;
         this.fr  = 99999; // no regular bullets — laser only
-        this.dmg = (14+wave*1.6)|0;
+        this.dmg = (14+wave*1.2)|0;
         this.sc=35+wave*3; this.bsp=1.5;
         this.col='#7733aa';
         this.laser=null; this.laserTimer=Math.random()*2500;
@@ -1436,7 +1437,7 @@ class Enemy {
   update(dt) {
     this.pt+=dt*1000; this.ft+=dt*1000;
     this.flash=Math.max(0,this.flash-dt*6);
-    const spd = this.spd * enemySlowMul;
+    const spd = this.spd * (PL.confinement ? Math.min(0.5, enemySlowMul) : enemySlowMul);
 
     switch(this.pat){
       case 'sweep':
@@ -1727,7 +1728,7 @@ const UPGDEFS = [
   {id:'ml1',  r:'uncommon', w:22, ico:'📷', nm:'Multiple TLIII',  dsc:'Enciks found a way to mount another Toplite onto the launcher', eff:'+2 launchers', fn:(p)=>{ p.projCount=Math.min(8,p.projCount+2); }},
   {id:'hp2',  r:'uncommon', w:20, ico:'🛡️', nm:'Titanium Carriage', req:['hp1'], dsc:'Desean managed to mount titanium onto the launcher', eff:'+100 max HP', fn:(p)=>{ p.maxHp+=100; p.hp=Math.min(p.hp+100,p.maxHp); p.titaniumVis=true; }},
   {id:'mlu1', r:'epic',     w:3,  ico:'⬆️', nm:'MLU',              req:['hp2'], dsc:'Matthew managed to steal one from 3DA for use', eff:'+200 max HP, 10% damage reduction', fn:(p)=>{ p.maxHp+=200; p.hp=Math.min(p.hp+200,p.maxHp); p.dmgReduce=(p.dmgReduce||0)+0.10; }},
-  {id:'conf', r:'uncommon', w:18, ico:'🎬', nm:'Confinement',       dsc:'Make all the enemies watch A Few Good Men before each wave', eff:'Enemies start each wave at 30% speed (ramps up)', fn:(p)=>{ p.confinement=true; }},
+  {id:'conf', r:'uncommon', w:18, ico:'🎬', nm:'Confinement',       dsc:'Make all the enemies watch A Few Good Men before each wave', eff:'All enemy movement permanently reduced by 50%', fn:(p)=>{ p.confinement=true; }},
   {id:'doc1', r:'uncommon', w:16, ico:'🩺', nm:"Doctor's Deferment", dsc:'Jacob comes back to heal the launcher', eff:'+3 HP/sec passive regen', fn:(p)=>{ p.hpRegen+=3; }},
   {id:'par1', r:'uncommon', w:15, ico:'🎖️', nm:'Parade Season',     dsc:'Parade 2IC Juai Seu makes the men fall in before every wave', eff:'+15% dmg, −12% reload, +12% speed, +25 max HP', fn:(p)=>{ p.damage=(p.damage*1.15)|0; p.fireRate=(p.fireRate*.88)|0; p.speed*=1.12; p.maxHp+=25; p.hp=Math.min(p.hp+25,p.maxHp); p.paradeVis=true; }},
   // ── rare ──
@@ -1736,11 +1737,11 @@ const UPGDEFS = [
   {id:'co1',  r:'rare',     w:9,  ico:'🚀', nm:'RBS70',           dsc:'RBS is here to help!',         eff:'Deploy an RBS70 ground unit', fn:(p)=>{ if(p.companions.length<6) p.companions.push(new RBS70()); }},
   {id:'dmg3', r:'rare',     w:10, ico:'☢️', nm:'Ballistic',       req:['dmg2'], dsc:'Can now load ballistic missiles',fn:(p)=>{ p.damage=(p.damage*2)|0; }},
   // ── rare (extra) ──
-  {id:'oc1',  r:'rare',     w:11, ico:'⚙️', nm:'No-Duff Upgrade',  dsc:'Siauw got unlucky again',       eff:'+20% dmg & -15% reload', fn:(p)=>{ p.damage=(p.damage*1.2)|0; p.fireRate=(p.fireRate*.85)|0; p.noDuffVis=true; }},
+  {id:'oc1',  r:'rare',     w:11, ico:'⚙️', nm:'No-Duff Upgrade',  dsc:'Siauw got unlucky again',       eff:'+30% dmg & -30% reload', fn:(p)=>{ p.damage=(p.damage*1.3)|0; p.fireRate=(p.fireRate*.70)|0; p.noDuffVis=true; }},
   {id:'sa1',  r:'rare',     w:9,  ico:'☂️', nm:'Bigger Umbrella',  req:['sh1'], dsc:'Increased aura loss comes with this upgrade', eff:'+50 shield (or add 30HP shield)', fn:(p)=>{ if(p.hasShield){ p.maxShield+=50; p.shield=Math.min(p.shield+50,p.maxShield); } else { p.maxShield=30; p.shield=30; p.hasShield=true; } }},
-  {id:'cs1',  r:'rare',     w:10, ico:'🗣️', nm:"Aslan's Speech",  dsc:'Motivates the crew and maybe make Trevor cry', eff:'+35 max HP, +12% spd', fn:(p)=>{ p.maxHp+=35; p.hp=Math.min(p.hp+35,p.maxHp); p.speed*=1.12; p.aslanVis=true; }},
+  {id:'cs1',  r:'rare',     w:10, ico:'🗣️', nm:"Aslan's Speech",  dsc:'Motivates the crew and maybe make Trevor cry', eff:'+50 max HP, +30% spd', fn:(p)=>{ p.maxHp+=50; p.hp=Math.min(p.hp+50,p.maxHp); p.speed*=1.30; p.aslanVis=true; }},
   {id:'hm1',  r:'rare',     w:10, ico:'🐍', nm:'Python Seeker',   dsc:'All missiles home in on targets', fn:(p)=>{ p.homing=true; }},
-  {id:'dis1', r:'rare',     w:10, ico:'🎵', nm:'Disney Music',    dsc:'Chorch motivates the crew',       eff:'When HP<40%: +35% speed & −30% reload', fn:(p)=>{ p.disneyBoost=true; p.musicNotesVis=true; }},
+  {id:'dis1', r:'rare',     w:10, ico:'🎵', nm:'Disney Music',    dsc:'Chorch motivates the crew',       eff:'When HP<50%: +35% speed & −30% reload', fn:(p)=>{ p.disneyBoost=true; p.musicNotesVis=true; }},
   {id:'ric1', r:'rare',     w:9,  ico:'↩️', nm:'Ricochet',        dsc:'Josher convinces the missiles they can bounce', eff:'Missiles bounce once to another enemy on hit', fn:(p)=>{ p.ricochet=true; }},
   {id:'ric2', r:'epic',    w:3,  ico:'↩️', nm:'More Ricochet',   req:['ric1'], dsc:'Josher filed a 12-page AAR on why one bounce was insufficient', eff:'Missiles now bounce twice', fn:(p)=>{ p.maxBounces=2; }},
   {id:'sal1', r:'rare',     w:8,  ico:'💨', nm:'Salakau',         dsc:'Miles added vape to the fuse',    eff:'Missiles leave a lingering vape cloud that damages enemies', fn:(p)=>{ p.salakau=true; }},
@@ -1780,6 +1781,19 @@ function pickUpgrades(n=3, onlyCommon=false) {
   });
   const pool = eligible.map(u => ({ u, w: u.w * rarityWaveMul(u.r) }));
   const result = [];
+  // Guarantee at least one common appears in every non-starter upgrade cycle
+  if(!onlyCommon) {
+    const commonPool = pool.filter(e => e.u.r === 'common');
+    if(commonPool.length > 0) {
+      const tot = commonPool.reduce((s,e) => s+e.w, 0);
+      let rv = Math.random() * tot;
+      let ci = commonPool.length - 1;
+      for(let i = 0; i < commonPool.length; i++) { rv -= commonPool[i].w; if(rv <= 0){ ci=i; break; } }
+      result.push(commonPool[ci].u);
+      const idx = pool.findIndex(e => e.u.id === commonPool[ci].u.id);
+      if(idx !== -1) pool.splice(idx, 1);
+    }
+  }
   while(result.length < n && pool.length > 0) {
     const total = pool.reduce((s,e) => s+e.w, 0);
     let r = Math.random() * total;
@@ -1829,7 +1843,6 @@ let STATE_NOW=ST.MENU;
 function startWave(n) {
   waveNum=n; waveClear=false; waveClearT=0;
   ENEMIES.length=0; PROJS.length=0; spawnQ=[]; spawnT=0; BOSS=null;
-  if(PL.confinement && n%3!==0){ enemySlowTimer=6000; enemySlowMul=0.3; }
 
   if(n%3===0){
     BOSS=new BossEnemy(n);
@@ -1837,7 +1850,7 @@ function startWave(n) {
     STATE_NOW=ST.INTRO;
   } else {
     // W1:4  W2:5  W4:7  W5:8  W7:9  W8:10 ... capped at 22 (W7-8 get -1 relief)
-    const count = Math.max(1, Math.min(22, 3+n-PL.enemyCut - ((n===7||n===8)?1:0)));
+    const count = Math.max(1, Math.min(30, 3+n+Math.floor(n/4)-PL.enemyCut - ((n===7||n===8)?1:0)));
     // W1: fighters only | W2-4: mostly fighters | W5-9: all types | W10+: +laser troopers
     const types = n<=1 ? ['f'] : n<=4 ? ['f','f','b'] : n<=9 ? ['f','b','e'] : ['f','f','b','e','l'];
     // W7-8 get extra breathing room between spawns
@@ -1986,15 +1999,17 @@ function drawHUD() {
 let fbDB=null;
 try{
   if(FIREBASE_CFG && typeof firebase!=='undefined'){
-    firebase.initializeApp(FIREBASE_CFG);
-    fbDB=firebase.firestore();
-    fbDB.settings({ experimentalForceLongPolling:true, merge:true });
+    const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(FIREBASE_CFG);
+    fbDB=firebase.firestore(app);
+    fbDB.settings({ experimentalAutoDetectLongPolling:true, merge:true });
+    console.log('[SPYDER] Firebase connected');
   }
-} catch(e){}
+} catch(e){ console.error('[SPYDER] Firebase init failed:', e); fbDB=null; }
 
 async function lbSave(name, sc, wave) {
   if(fbDB){
-    try{ await fbDB.collection('spyder_scores').add({name,score:sc,wave,ts:new Date()}); } catch(e){}
+    try{ await fbDB.collection('spyder_scores').add({name,score:sc,wave,ts:new Date()}); console.log('[SPYDER] Score saved to Firebase'); }
+    catch(e){ console.error('[SPYDER] Firebase save failed:', e); }
   }
   // Always save locally too
   const lb=lbLocal(); lb.push({name,score:sc,wave});
@@ -2006,9 +2021,11 @@ async function lbGet() {
   if(fbDB){
     try{
       const snap=await fbDB.collection('spyder_scores').orderBy('score','desc').limit(10).get();
+      console.log('[SPYDER] Firebase read OK, docs:', snap.docs.length);
       return snap.docs.map(d=>d.data());
-    } catch(e){}
+    } catch(e){ console.error('[SPYDER] Firebase read failed:', e); }
   }
+  console.warn('[SPYDER] Falling back to localStorage');
   return lbLocal();
 }
 
@@ -2019,7 +2036,7 @@ async function lbGetAll() {
     try{
       const snap=await fbDB.collection('spyder_scores').orderBy('score','desc').limit(200).get();
       return snap.docs.map(d=>d.data());
-    } catch(e){}
+    } catch(e){ console.error('[SPYDER] Firebase readAll failed:', e); }
   }
   return lbLocal();
 }
@@ -2039,6 +2056,9 @@ async function showLB() {
   tbody.innerHTML=data.length ? data.map((e,i)=>
     `<tr><td>#${i+1}</td><td>${e.name||'ANON'}</td><td>${e.score}</td><td>${e.wave}</td></tr>`
   ).join('') : '<tr><td colspan="4" style="color:#333;text-align:center;padding:.8rem">No scores yet</td></tr>';
+  const badge=document.getElementById('lbStatus');
+  if(badge) badge.textContent = fbDB ? '● ONLINE' : '● LOCAL ONLY';
+  if(badge) badge.style.color = fbDB ? '#00ff88' : '#ff4444';
 }
 
 // ══════════════════════════════════════════════════════════════
