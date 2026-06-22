@@ -130,9 +130,11 @@ canvas{display:block;width:100%;height:auto;
 
 <!-- ── UPGRADE CODEX ── -->
 <div id="upgCodex">
-  <h2>⚙ UPGRADE CODEX</h2>
+  <div style="position:sticky;top:0;width:100%;max-width:680px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.93);padding:.5rem 0;z-index:1;flex-shrink:0">
+    <h2 style="margin:0">⚙ UPGRADE CODEX</h2>
+    <button class="btn grey" id="codexCloseBtn" style="margin:0;padding:.3rem .8rem;min-height:36px;font-size:.75rem">[ BACK ]</button>
+  </div>
   <div id="codexContent"></div>
-  <button class="btn grey" id="codexCloseBtn" style="margin-top:1rem;flex-shrink:0">[ BACK TO MENU ]</button>
 </div>
 
 <!-- ── GAME OVER ── -->
@@ -147,13 +149,26 @@ canvas{display:block;width:100%;height:auto;
 </div>
 
 <!-- ── LEADERBOARD ── -->
-<div class="ov hide" id="lbOv">
+<div class="ov hide" id="lbOv" style="position:relative">
+  <button class="btn grey" id="lbBackBtn" style="position:absolute;top:.5rem;right:.5rem;margin:0;padding:.3rem .8rem;min-height:36px;font-size:.75rem">[ BACK ]</button>
   <h1>TOP SCORES</h1>
   <table id="lbTable">
     <thead><tr><th>Rank</th><th>Callsign</th><th>Score</th><th>Wave</th></tr></thead>
     <tbody id="lbBody"></tbody>
   </table>
-  <button class="btn" id="lbBackBtn" style="margin-top:1.2rem">[ BACK ]</button>
+  <button class="btn" id="lbViewAllBtn" style="margin-top:.8rem;font-size:.82rem">[ VIEW ALL SCORES ]</button>
+</div>
+
+<!-- ── FULL LEADERBOARD ── -->
+<div class="ov hide" id="fullLbOv" style="flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;padding:1rem .8rem .8rem">
+  <div style="position:sticky;top:0;width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:center;background:rgba(0,0,0,.92);padding:.4rem 0;z-index:1;flex-shrink:0;margin-bottom:.6rem">
+    <h1 style="margin:0;font-size:1.5rem;color:#00ff88;text-shadow:0 0 12px #00ff88;letter-spacing:2px">ALL SCORES</h1>
+    <button class="btn grey" id="fullLbBackBtn" style="margin:0;padding:.3rem .8rem;min-height:36px;font-size:.75rem">[ BACK ]</button>
+  </div>
+  <table id="fullLbTable" style="border-collapse:collapse;width:100%;max-width:520px">
+    <thead><tr><th style="color:#00ff88;border-bottom:1px solid #00ff88;padding:.35rem 1.2rem;text-align:left">Rank</th><th style="color:#00ff88;border-bottom:1px solid #00ff88;padding:.35rem 1.2rem;text-align:left">Callsign</th><th style="color:#00ff88;border-bottom:1px solid #00ff88;padding:.35rem 1.2rem;text-align:left">Score</th><th style="color:#00ff88;border-bottom:1px solid #00ff88;padding:.35rem 1.2rem;text-align:left">Wave</th></tr></thead>
+    <tbody id="fullLbBody"></tbody>
+  </table>
 </div>
 
 <!-- ── UPGRADE SCREEN ── -->
@@ -348,6 +363,20 @@ function drawElite(cx, cy) {
   pr(cx-1, cy-5, 2, 4, '#223366'); // canopy
   pr(cx-1, cy+6, 2, 2, '#ff4400'); // afterburner
   pr(cx-1, cy+7, 2, 1, '#ffaa00');
+}
+
+function drawLaserTrooper(cx, cy) {
+  pr(cx-1, cy-7, 2, 13, '#4a1a6a'); // fuselage
+  pr(cx-1, cy-8, 2,  2, '#aa66cc'); // nose
+  pr(cx-5, cy-1, 4,  2, '#3a1055'); // left wing
+  pr(cx+2, cy-1, 4,  2, '#3a1055'); // right wing
+  pr(cx-3, cy+1, 2,  1, '#2a0844'); // wing shadow L
+  pr(cx+2, cy+1, 2,  1, '#2a0844'); // wing shadow R
+  pr(cx-1, cy-5, 2,  3, '#7733aa'); // cockpit
+  pr(cx-2, cy+3, 5,  2, '#6622aa'); // cannon housing
+  pr(cx,   cy+4, 1,  1, '#ffccff'); // emitter glow
+  pr(cx,   cy+5, 1,  3, '#ff88ff'); // barrel
+  pr(cx-1, cy+7, 2,  1, '#cc44ff'); // engine glow
 }
 
 // ── Boss sprites ──────────────────────────────────────────────
@@ -1032,13 +1061,34 @@ function drawParadeOfficer(cx,cy){
   pr(px+2,py-1, 1,2,'#1a1a44'); // right leg
 }
 function drawAslan(cx,cy){
-  const ax=cx-22,ay=cy;
-  pr(ax,  ay-5,2,1,'#d0a070'); // head
-  pr(ax-1,ay-4,3,3,'#446688'); // uniform
-  pr(ax,  ay,  1,2,'#334466'); // legs
-  pr(ax+1,ay-4,1,1,'#331100'); // open mouth
-  pr(ax+2,ay-6,1,2,'#fff'); pr(ax+2,ay-4,1,1,'#fff'); // !
-  pr(ax+3,ay-5,3,1,'#ffdd00'); pr(ax+5,ay-6,1,2,'#ffdd00'); // arrow >
+  const ox=(cx-22)*P, oy=cy*P;
+  const c=(col,x,y,w,h)=>{ctx.fillStyle=col;ctx.fillRect(ox+x,oy+y,w,h);};
+  // Cap
+  c('#1a2a6a',  1,-32,  8,  2); // crown
+  c('#1a2a6a', -1,-30, 12,  2); // brim
+  // Head
+  c('#d0a070',  1,-28,  8,  6); // upper head
+  // Shouting face — wide open mouth in lower head
+  c('#d0a070',  1,-22,  2,  4); // left cheek
+  c('#cc1100',  3,-22,  4,  4); // open mouth red
+  c('#3a0000',  3,-21,  4,  2); // mouth cavity
+  c('#d0a070',  7,-22,  2,  4); // right cheek
+  // Collar
+  c('#ddaa00',  1,-18,  8,  2); // rank/collar
+  // Jacket body
+  c('#446688', -1,-16, 12,  8); // torso
+  c('#ddaa00',  3,-16,  4,  2); // chest insignia
+  // Arms spread wide (shouting pose)
+  c('#446688', -8,-14,  7,  4); // left arm
+  c('#d0a070', -8,-10,  5,  2); // left hand
+  c('#446688', 11,-14,  7,  4); // right arm
+  c('#d0a070', 12,-10,  5,  2); // right hand
+  // Legs
+  c('#334466',  1, -8,  4, 10); // left leg
+  c('#334466',  6, -8,  4, 10); // right leg
+  // Exclamation mark — clearly to the right, easy to read
+  c('#ffff00', 20,-28,  4, 16); // ! stem
+  c('#ffff00', 20,-10,  4,  4); // ! dot
 }
 
 // ── Siauw Yu Hern (nuke sprite) ──
@@ -1362,10 +1412,21 @@ class Enemy {
         this.dmg = wave<=2 ? 6+wave        : (8+wave*1.5)|0;
         this.sc=20+wave*2; this.bsp=wave<=2 ? .95+wave*.08 : 1.8+wave*.13;
         this.col='#223344'; break;
+      case 'l': // laser trooper (wave 10+)
+        this.hp=this.maxHp=(50*ws)|0;
+        this.spd = .55+wave*.035;
+        this.fr  = 99999; // no regular bullets — laser only
+        this.dmg = (14+wave*1.6)|0;
+        this.sc=35+wave*3; this.bsp=1.5;
+        this.col='#7733aa';
+        this.laser=null; this.laserTimer=Math.random()*2500;
+        this.laserCd=Math.max(2800, 5000-wave*80);
+        break;
     }
 
     const pats=['sweep','dive','zigzag','hover'];
     this.pat=pats[(Math.random()*pats.length)|0];
+    if(this.type==='l') this.pat=Math.random()<.5?'sweep':'hover';
     this.vx=(Math.random()-.5)*this.spd*2;
     this.vy=this.spd*.4;
     this.ft=Math.random()*this.fr;
@@ -1405,6 +1466,26 @@ class Enemy {
     this.x=Math.max(5,Math.min(GW-5,this.x));
     this.y=Math.min(this.y, GH-40); // never fly into lower half of screen
 
+    // Laser trooper: charge and fire a fixed-angle beam
+    if(this.type==='l'){
+      this.laserTimer+=dt*1000;
+      if(!this.laser && this.laserTimer>=this.laserCd){
+        this.laserTimer=0;
+        const dx=PL.x-this.x, dy=PL.y-this.y;
+        this.laser={angle:Math.atan2(dy,dx),chargeDur:1200,fireDur:900,timer:0,phase:'charge',dmgTimer:0,sweepDir:0};
+      }
+      if(this.laser){
+        this.laser.timer+=dt*1000;
+        if(this.laser.phase==='charge'&&this.laser.timer>=this.laser.chargeDur){
+          this.laser.phase='fire'; this.laser.timer=0; this.laser.dmgTimer=0;
+        }
+        if(this.laser.phase==='fire'){
+          this.laser.dmgTimer=(this.laser.dmgTimer||0)+dt*1000;
+          if(this.laser.dmgTimer>=400){ this.laser.dmgTimer=0; if(laserHitsPlayer(this.x,this.y,this.laser.angle)) hurtPlayer((this.dmg*.6)|0); }
+          if(this.laser.timer>=this.laser.fireDur) this.laser=null;
+        }
+      }
+    }
     if(this.ft>=(PL.rsd?this.fr*2:this.fr) && this.y>0){ this.ft=0; this.shoot(); }
   }
 
@@ -1432,8 +1513,10 @@ class Enemy {
       case 'f': drawFighter((this.x)|0,(this.y)|0,this.col); break;
       case 'b': drawBomber((this.x)|0,(this.y)|0); break;
       case 'e': drawElite((this.x)|0,(this.y)|0); break;
+      case 'l': drawLaserTrooper((this.x)|0,(this.y)|0); break;
     }
     if(this.flash>0) ctx.globalAlpha=1;
+    if(this.type==='l' && this.laser) drawLaserFX(this.x,this.y,this.laser);
     if(this.hp<this.maxHp){
       const bw=12, bx=(this.x-6)|0, by=(this.y-10)|0;
       pr(bx,by,bw,1,'#440000'); pr(bx,by,(bw*this.hp/this.maxHp)|0,1,'#ff2200');
@@ -1753,12 +1836,12 @@ function startWave(n) {
     bossIntroTimer=0;
     STATE_NOW=ST.INTRO;
   } else {
-    // W1:4  W2:5  W4:7  W5:8  W7:10  W8:11 ... capped at 22
-    const count = Math.max(1, Math.min(22, 3+n-PL.enemyCut));
-    // W1: fighters only | W2-4: mostly fighters | W5+: all types
-    const types = n<=1 ? ['f'] : n<=4 ? ['f','f','b'] : ['f','b','e'];
-    // Breathing room early, faster spawns as waves increase
-    const spawnGap = n<=2 ? 2000 : Math.max(750, 1900-n*80);
+    // W1:4  W2:5  W4:7  W5:8  W7:9  W8:10 ... capped at 22 (W7-8 get -1 relief)
+    const count = Math.max(1, Math.min(22, 3+n-PL.enemyCut - ((n===7||n===8)?1:0)));
+    // W1: fighters only | W2-4: mostly fighters | W5-9: all types | W10+: +laser troopers
+    const types = n<=1 ? ['f'] : n<=4 ? ['f','f','b'] : n<=9 ? ['f','b','e'] : ['f','f','b','e','l'];
+    // W7-8 get extra breathing room between spawns
+    const spawnGap = n<=2 ? 2000 : Math.max(750, 1900-n*80 + ((n===7||n===8)?200:0));
     for(let i=0;i<count;i++){
       const t=types[(Math.random()*types.length)|0];
       spawnQ.push({t, delay:i*spawnGap});
@@ -1931,6 +2014,25 @@ async function lbGet() {
 
 function lbLocal(){ try{ return JSON.parse(localStorage.getItem('spyderLB2')||'[]'); } catch{ return []; } }
 
+async function lbGetAll() {
+  if(fbDB){
+    try{
+      const snap=await fbDB.collection('spyder_scores').orderBy('score','desc').limit(200).get();
+      return snap.docs.map(d=>d.data());
+    } catch(e){}
+  }
+  return lbLocal();
+}
+
+async function showFullLB() {
+  const data=await lbGetAll();
+  const tbody=document.getElementById('fullLbBody');
+  tbody.innerHTML=data.length ? data.map((e,i)=>{
+    const gold=i===0?'color:#ffdd00':'color:#aaa';
+    return `<tr><td style="${gold};padding:.3rem 1.2rem">#${i+1}</td><td style="${gold};padding:.3rem 1.2rem">${e.name||'ANON'}</td><td style="${gold};padding:.3rem 1.2rem">${e.score}</td><td style="${gold};padding:.3rem 1.2rem">${e.wave}</td></tr>`;
+  }).join('') : '<tr><td colspan="4" style="color:#333;text-align:center;padding:.8rem">No scores yet</td></tr>';
+}
+
 async function showLB() {
   const data=await lbGet();
   const tbody=document.getElementById('lbBody');
@@ -2080,6 +2182,15 @@ document.getElementById('lbBackBtn').addEventListener('click',()=>{
   document.getElementById('lbOv').classList.add('hide');
   document.getElementById('menuOv').classList.remove('hide');
   STATE_NOW=ST.MENU;
+});
+document.getElementById('lbViewAllBtn').addEventListener('click',()=>{
+  showFullLB();
+  document.getElementById('lbOv').classList.add('hide');
+  document.getElementById('fullLbOv').classList.remove('hide');
+});
+document.getElementById('fullLbBackBtn').addEventListener('click',()=>{
+  document.getElementById('fullLbOv').classList.add('hide');
+  document.getElementById('lbOv').classList.remove('hide');
 });
 
 // ── Upgrade Codex ──
