@@ -1901,13 +1901,18 @@ function collide() {
     if(p.isPlayer){
       // vs enemies
       for(const e of ENEMIES){
-        if(!e.dead && Math.abs(p.x-e.x)<7 && Math.abs(p.y-e.y)<7){
+        if(!e.dead && e!==p.lastHit && Math.abs(p.x-e.x)<7 && Math.abs(p.y-e.y)<7){
           e.hit(p.dmg);
           if(PL.ricochet && p.bounces<PL.maxBounces){
             // bounce to nearest other living enemy
-            const next=ENEMIES.find(o=>o!==e && !o.dead);
+            let next=null, bestDist=Infinity;
+            for(const o of ENEMIES){
+              if(o===e || o.dead) continue;
+              const d=Math.hypot(o.x-p.x,o.y-p.y);
+              if(d<bestDist){ bestDist=d; next=o; }
+            }
             if(next){
-              p.bounces++; p.dead=false; p.homing=true;
+              p.bounces++; p.dead=false; p.homing=true; p.lastHit=e;
               const dx=next.x-p.x, dy=next.y-p.y, len=Math.hypot(dx,dy);
               const spd=Math.hypot(p.vx,p.vy);
               p.vx=dx/len*spd; p.vy=dy/len*spd;
