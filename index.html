@@ -845,7 +845,7 @@ function drawBG(dt) {
 // ══════════════════════════════════════════════════════════════
 const PL = {
   x: GW/2, y: GH-9,
-  hp:100, maxHp:100,
+  hp:125, maxHp:125,
   speed:2.2,
   damage:20,
   fireRate:600,        // ms per shot
@@ -1326,7 +1326,29 @@ class Proj {
         this.vy=Math.sin(newAngle)*spd;
       }
     }
+    // Slow homing enemy projectile
+    if(this.slowHoming && !this.isPlayer){
+      const dx=PL.x-this.x, dy=PL.y-this.y;
+      const curAngle=Math.atan2(this.vy,this.vx);
+      const wantAngle=Math.atan2(dy,dx);
+      let da=wantAngle-curAngle;
+      while(da> Math.PI) da-=Math.PI*2;
+      while(da<-Math.PI) da+=Math.PI*2;
+      const maxTurn=0.045*dt*60;
+      const turn=Math.max(-maxTurn,Math.min(maxTurn,da));
+      const newAngle=curAngle+turn;
+      const spd=Math.hypot(this.vx,this.vy);
+      this.vx=Math.cos(newAngle)*spd; this.vy=Math.sin(newAngle)*spd;
+    }
     this.x+=this.vx*dt*60; this.y+=this.vy*dt*60;
+    // Mega bomb — explodes near player or at ground
+    if(this.isMegaBomb){
+      if(Math.hypot(PL.x-this.x,PL.y-this.y)<12 || this.y>=GH-6){
+        spawnExplosion(this.x,this.y,35,true);
+        if(Math.hypot(PL.x-this.x,PL.y-this.y)<14) hurtPlayer(this.megaDmg);
+        this.dead=true;
+      }
+    }
     if(this.isPlayer && PL.salakau){
       this.trailTimer+=dt*1000;
       if(this.trailTimer>=22){ this.trailTimer=0; VAPECLOUDS.push(new VapeCloud(this.x,this.y)); VAPECLOUDS.push(new VapeCloud(this.x+(Math.random()-.5)*2,this.y+(Math.random()-.5)*2)); }
@@ -1611,10 +1633,10 @@ class BossEnemy {
     this.hp=this.maxHp=(bd.hp*sc)|0;
     this.spd=bd.spd+(this.num-1)*.05;
     this.dmg=(bd.dmg+(this.num-1)*8)|0;
-    this.bsp=bd.bsp+(this.num-1)*.12;
+    this.bsp=bd.bsp+0.12; // fixed at wave-6 equivalent, does not scale further
     this.fr=Math.max(280,bd.fr-(this.num-1)*70);
     this.sc=200+this.num*120;
-    this.ft=0; this.pt=0; this.atk=0;
+    this.ft=0; this.pt=0; this.atk=0; this.specialVariant=0;
     this.dead=false; this.flash=0; this.arrived=false;
     // Special state
     this.laser=null;
@@ -1717,28 +1739,80 @@ class BossEnemy {
   }
 
   doSpecial(){
+    const v=this.specialVariant; this.specialVariant=(this.specialVariant+1)%3;
     switch(this.type){
-      case 0: // RECON — fast ring burst
-        for(let i=0;i<16;i++){ const a=(i/16)*Math.PI*2;
-          PROJS.push(new Proj(this.x,this.y,Math.cos(a)*this.bsp*1.2,Math.sin(a)*this.bsp*1.2,false,(this.dmg*.35)|0)); }
-        break;
-      case 1: // BOMBER — carpet bomb
-        for(let i=0;i<4;i++){
-          this.blasts.push({
+      case 0: // RECON
+        if(v===0){ // fast ring burst
+          for(let i=0;i<16;i++){ const a=(i/16)*Math.PI*2;
+            PROJS.push(new Proj(this.x,this.y,Math.cos(a)*this.bsp*1.2,Math.sin(a)*this.bsp*1.2,false,(this.dmg*.35)|0)); }
+        } else if(v===1){ // slow homing cluster — 5 sluggish missiles that track player
+          for(let i=0;i<5;i++){
+            const a=(i/5)*Math.PI*2;
+            const p=new Proj(this.x,this.y,Math.cos(a)*1.1,Math.sin(a)*1.1,false,(this.dmg*.6)|0);
+            p.slowHoming=true; PROJS.push(p);
+          }
+        } else { // sniper triple — 3 fast aimed shots staggered
+          const dx=PL.x-this.x,dy=PL.y-this.y,len=Math.hypot(dx,dy);
+          for(let i=0;i<3;i++) setTimeout(()=>{
+            if(!this.dead) PROJS.push(new Proj(this.x,this.y+8,dx/len*this.bsp*1.8,dy/len*this.bsp*1.8,false,this.dmg));
+          },i*180);
+        } break;
+
+      case 1: // BOMBER
+        if(v===0){ // carpet bomb ×4
+          for(let i=0;i<4;i++) this.blasts.push({
             x:Math.max(12,Math.min(GW-12,PL.x+(Math.random()-.5)*55)),
-            y:GH-7+(Math.random()-.5)*3, timer:0, maxTimer:1800,
-            radius:9, dmg:(this.dmg*1.4)|0
+            y:GH-7+(Math.random()-.5)*3, timer:0, maxTimer:1800, radius:9, dmg:(this.dmg*1.4)|0
+          });
+        } else if(v===1){ // mega bomb — 1 slow exploding projectile
+          const dx=PL.x-this.x,dy=PL.y-this.y,len=Math.hypot(dx,dy);
+          const mb=new Proj(this.x,this.y,dx/len*1.0,dy/len*1.0,false,0);
+          mb.isMegaBomb=true; mb.megaDmg=(this.dmg*2.2)|0; PROJS.push(mb);
+        } else { // heavy carpet bomb ×7 wider spread
+          for(let i=0;i<7;i++) this.blasts.push({
+            x:Math.max(12,Math.min(GW-12,PL.x+(Math.random()-.5)*90)),
+            y:GH-7+(Math.random()-.5)*3, timer:0, maxTimer:2200, radius:12, dmg:(this.dmg*1.0)|0
           });
         } break;
-      case 2: // GUNSHIP — laser beam
-        this.fireLaser(false); break;
-      case 3: // STEALTH — handled by stealthTimer; no extra special
+
+      case 2: // GUNSHIP
+        if(v===0){ // laser beam
+          this.fireLaser(false);
+        } else if(v===1){ // drone swarm — spawn 3 fighters
+          for(let i=0;i<3;i++) ENEMIES.push(new Enemy('f',this.wave-1));
+        } else { // spread volley — 3 aimed shots with slight spread
+          const dx=PL.x-this.x,dy=PL.y-this.y,base=Math.atan2(dy,dx);
+          for(const sp of [-0.25,0,0.25])
+            PROJS.push(new Proj(this.x,this.y+8,Math.cos(base+sp)*this.bsp*1.3,Math.sin(base+sp)*this.bsp*1.3,false,(this.dmg*.8)|0));
+        } break;
+
+      case 3: // STEALTH — handled by stealthTimer; extra specials below
+        if(v===0){ // slow homing triple
+          for(let i=0;i<3;i++){
+            const a=Math.atan2(PL.y-this.y,PL.x-this.x)+(i-1)*0.4;
+            const p=new Proj(this.x,this.y,Math.cos(a)*1.3,Math.sin(a)*1.3,false,(this.dmg*.7)|0);
+            p.slowHoming=true; PROJS.push(p);
+          }
+        } else if(v===1){ // ring burst from stealth position
+          for(let i=0;i<10;i++){ const a=(i/10)*Math.PI*2;
+            PROJS.push(new Proj(this.x,this.y,Math.cos(a)*this.bsp,Math.sin(a)*this.bsp,false,(this.dmg*.4)|0)); }
+        } // else v===2: stealthTimer handles the disappear/reappear burst
         break;
-      case 4: // COMMAND — sweeping laser + summon minions
-        this.fireLaser(true);
-        for(let i=0;i<2+(this.num>3?1:0);i++)
-          ENEMIES.push(new Enemy(['f','b'][(Math.random()*2)|0],this.wave-1));
-        break;
+
+      case 4: // COMMAND
+        if(v===0){ // sweeping laser + minions
+          this.fireLaser(true);
+          for(let i=0;i<2+(this.num>3?1:0);i++)
+            ENEMIES.push(new Enemy(['f','b'][(Math.random()*2)|0],this.wave-1));
+        } else if(v===1){ // mega radial burst ×24
+          for(let i=0;i<24;i++){ const a=(i/24)*Math.PI*2;
+            PROJS.push(new Proj(this.x,this.y,Math.cos(a)*this.bsp*1.1,Math.sin(a)*this.bsp*1.1,false,(this.dmg*.4)|0)); }
+        } else { // mega bomb + minions
+          const dx=PL.x-this.x,dy=PL.y-this.y,len=Math.hypot(dx,dy);
+          const mb=new Proj(this.x,this.y,dx/len*0.85,dy/len*0.85,false,0);
+          mb.isMegaBomb=true; mb.megaDmg=(this.dmg*2.5)|0; PROJS.push(mb);
+          for(let i=0;i<2;i++) ENEMIES.push(new Enemy('b',this.wave-1));
+        } break;
     }
   }
 
@@ -1867,26 +1941,21 @@ function pickUpgrades(n=3, onlyCommon=false) {
     if(u.cond && !u.cond()) return false;
     return true;
   });
-  const pool = eligible.map(u => ({ u, w: u.w * rarityWaveMul(u.r) }));
+  // Equal weight for all — rarities are cosmetic only, not probability gates
+  const pool = eligible.map(u => ({ u, w: 1 }));
   const result = [];
   // Guarantee at least one common appears in every non-starter upgrade cycle
   if(!onlyCommon) {
     const commonPool = pool.filter(e => e.u.r === 'common');
     if(commonPool.length > 0) {
-      const tot = commonPool.reduce((s,e) => s+e.w, 0);
-      let rv = Math.random() * tot;
-      let ci = commonPool.length - 1;
-      for(let i = 0; i < commonPool.length; i++) { rv -= commonPool[i].w; if(rv <= 0){ ci=i; break; } }
+      const ci = Math.floor(Math.random() * commonPool.length);
       result.push(commonPool[ci].u);
       const idx = pool.findIndex(e => e.u.id === commonPool[ci].u.id);
       if(idx !== -1) pool.splice(idx, 1);
     }
   }
   while(result.length < n && pool.length > 0) {
-    const total = pool.reduce((s,e) => s+e.w, 0);
-    let r = Math.random() * total;
-    let chosen = pool.length - 1;
-    for(let i = 0; i < pool.length; i++) { r -= pool[i].w; if(r <= 0){ chosen=i; break; } }
+    const chosen = Math.floor(Math.random() * pool.length);
     result.push(pool[chosen].u);
     pool.splice(chosen, 1);
   }
