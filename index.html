@@ -1941,8 +1941,10 @@ function pickUpgrades(n=3, onlyCommon=false) {
     if(u.cond && !u.cond()) return false;
     return true;
   });
-  // Equal weight for all — rarities are cosmetic only, not probability gates
-  const pool = eligible.map(u => ({ u, w: 1 }));
+  // Weight by rarity tier so higher rarity is individually more likely,
+  // offsetting the fact that there are fewer uncommons than rares.
+  const RW = { common:8, uncommon:12, rare:22, epic:32 };
+  const pool = eligible.map(u => ({ u, w: RW[u.r] || 10 }));
   const result = [];
   // Guarantee at least one common appears in every non-starter upgrade cycle
   if(!onlyCommon) {
@@ -1955,7 +1957,9 @@ function pickUpgrades(n=3, onlyCommon=false) {
     }
   }
   while(result.length < n && pool.length > 0) {
-    const chosen = Math.floor(Math.random() * pool.length);
+    const tot = pool.reduce((s,e) => s+e.w, 0);
+    let r = Math.random()*tot, chosen = pool.length-1;
+    for(let i=0;i<pool.length;i++){ r-=pool[i].w; if(r<=0){ chosen=i; break; } }
     result.push(pool[chosen].u);
     pool.splice(chosen, 1);
   }
